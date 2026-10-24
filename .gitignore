@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.tar.gz
+.DS_Store
+coverage/
+
+.openai/
+.env
+.env.*
+nihongo-progress-*.json
+*-qa-*.json
+*.pem
+*.key

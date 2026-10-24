@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; media-src blob:; connect-src 'none'; font-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none';" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1f3530" />
+    <meta name="description" content="日々 · 日本語：从第一声「あ」开始。每日课程、假名、旅居对话与间隔复习，让日语一点点进入生活。" />
+    <title>日々 · 日本語 — 每天，离日本生活近一点</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳转到学习内容</a>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="学习空间导航">
+        <a class="brand" href="#today" aria-label="日々 · 日本語，返回今日学习">
+          <span class="brand-mark" lang="ja">日々<span class="brand-dot"></span></span>
+          <span class="brand-subtitle">NIHONGO PATH</span>
+        </a>
+        <div class="nav-caption">每天，一点日语</div>
+        <nav class="main-nav" aria-label="主导航">
+          <button type="button" class="nav-button" data-route="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1Z" /></svg><span>今日学习</span><span class="nav-current-dot"></span></button>
+          <button type="button" class="nav-button" data-route="course"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v15M3 4c3-1 6 0 9 2 3-2 6-3 9-2v15c-3-1-6 0-9 2-3-2-6-3-9-2Z" /></svg><span>学习路线</span></button>
+          <button type="button" class="nav-button" data-route="kana"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M9 3v5c0 7-3 10-6 12M5 11c4-2 12-2 14 3 2 4-2 7-6 6M12 8c0 7-1 10-5 11M14 4l3 4" /></svg><span>五十音练习</span></button>
+          <button type="button" class="nav-button" data-route="scenarios"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H9l-5 4Z" /><path d="M8 8h8M8 12h5" /></svg><span>旅居会话</span></button>
+          <button type="button" class="nav-button" data-route="review"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5M12 8v5l3 2" /></svg><span>记忆复习</span><span id="nav-review-count" class="nav-count" hidden>0</span></button>
+          <button type="button" class="nav-button" data-route="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3v18h17M8 16v-5M13 16V7M18 16V4" /></svg><span>学习记录</span></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="sidebar-goal">
+            <span class="sidebar-goal-label">THE NEXT CHAPTER</span>
+            <div><span id="sidebar-target-date">设置目标日期</span><span class="goal-stamp">N1</span></div>
+            <p>N1 目标路线</p>
+            <span id="sidebar-phase">从第一声「あ」开始</span>
+          </div>
+          <button type="button" class="nav-button settings-nav" data-route="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 3-.7 3-2 .9-2.7-.8-2 3.4 2 2.2v2.4l-2 2.2 2 3.4 2.7-.8 2 .9.7 3h4l.7-3 2-.9 2.7.8 2-3.4-2-2.2v-2.4l2-2.2-2-3.4-2.7.8-2-.9L14 3Z" /><circle cx="12" cy="13" r="3" /></svg><span>学习设置</span></button>
+          <div class="sidebar-footnote">一日一歩。<span>每天向前一步。</span></div>
+        </div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <div class="breadcrumb">我的学习空间 <span> / 今日</span></div>
+          <div class="topbar-actions"><span id="save-status"><i class="status-dot" aria-hidden="true"></i>进度保存在此浏览器</span><button type="button" class="icon-button" data-action="settings" aria-label="学习设置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16" /><circle cx="9" cy="7" r="3" /><circle cx="15" cy="17" r="3" /></svg></button></div>
+        </header>
+        <main id="main-content" tabindex="-1">
+          <div id="app" aria-busy="true"><div class="loading-state"><span class="loading-kana" lang="ja">あ</span><h1>准备好，开始今天的日语。</h1><p>正在载入学习空间…</p></div></div>
+        </main>
+      </div>
+    </div>
+    <dialog id="modal" aria-label="练习"><div id="modal-content"></div></dialog>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <noscript><div class="noscript-notice">请启用浏览器的 JavaScript，以使用课程、练习和学习记录。你的练习数据保存在当前浏览器。</div></noscript>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

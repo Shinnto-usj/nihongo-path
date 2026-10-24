@@ -1,0 +1,17 @@
+{
+  "name": "nihongo-path",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A daily Japanese learning workspace for life in Japan and an evidence-based N1 goal.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check app.js && node --check lib/engine.js && node --check content/course.js && node scripts/validate-content.mjs",
+    "preview": "python3 -m http.server 4173 --directory dist",
+    "standalone": "node scripts/standalone.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
