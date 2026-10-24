@@ -90,4 +90,18 @@ The playback helper permits only same-origin audio, or bounded embedded audio in
 
 In the actual browser preview, a native あ recording and an English expression clip reached the playing state under the hosted CSP; a complete English listening scene also played, and its current source label survived revealing the transcript. Review grading advanced the queue normally. These are observed UI and playback-start checks, not an assertion that a human audited every pronunciation.
 
-Updated standalone builds embed their course MP3s and use final script/style CSP hashes. Their verified sizes are approximately 7.58 MB for Japanese and 11.39 MB for English. The actual HTTPS release will be documented below after successful deployment and inspection.
+Updated standalone builds embed their course MP3s and use final script/style CSP hashes. Their verified sizes are approximately 7.58 MB for Japanese and 11.39 MB for English. The actual HTTPS release has now been verified as described below.
+
+
+## Verified version 1.2 publication
+
+- Application source commit: `64786f4a50e767810fe5779f3b1851873edd30dc`.
+- Pages commit: `7ee12d90720b2fcabb9dcb5701386338448bfda0`.
+- [Pages run 40113458729](https://github.com/Shinnto-usj/nihongo-path/actions/runs/40113458729) completed successfully; its deployment log identifies https://shinnto-usj.github.io/nihongo-path/.
+- All 524 source-tree files and all 494 static-tree files were compared by Git blob SHA with the reviewed local release maps and matched exactly, including every MP3.
+- The actual Japanese HTTPS page rendered the new English link, labelled audio and original/slow controls. A VOICEVOX Nemo phrase and the native あ recording both reached the playing state, with the correct distinct source labels and original-speed indication.
+- The actual English HTTPS entry at https://shinnto-usj.github.io/nihongo-path/english/ rendered its empty initial dashboard, 24-unit catalog and 30-minute budget. A full dialogue reached the playing state as labelled, pre-generated synthetic audio under the expected hosted CSP.
+- No graded learning activity or microphone recording was created during this release's live-site check. The English page was left on its empty dashboard; existing Japanese settings were preserved. Screenshots of the actual live result were captured.
+- Portable HTML copies with embedded audio were saved successfully. File and website progress are separate browser contexts; explicit export/import transfers records between them.
+
+Documentation-only updates after the application commit do not change this Pages release.

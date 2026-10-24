@@ -37,4 +37,12 @@ Microphone timing and cleanup were verified with controlled mocks. The cloud-bro
 
 Progress stays at `english-atelier:v1` in the current browser; temporary recordings are excluded from backups. Same-origin paths are separate learning workspaces, not separate security origins. The app has no account-based sync; backups are transferred through explicit export/import.
 
-The actual HTTPS release result will be recorded after deployment; passing local checks alone does not establish publication.
+## Verified HTTPS publication
+
+**Live:** https://shinnto-usj.github.io/nihongo-path/english/
+
+Application source commit: `64786f4a50e767810fe5779f3b1851873edd30dc`; Pages commit: `7ee12d90720b2fcabb9dcb5701386338448bfda0`. [Pages run 40113458729](https://github.com/Shinnto-usj/nihongo-path/actions/runs/40113458729) completed successfully.
+
+The actual HTTPS entry rendered its zero-progress dashboard, 30-minute default plan and 24-unit catalog. Its first dialogue reached the playing state using the pre-generated audio at original speed. The live DOM carried the expected CSP, including same-origin media and no outgoing application connections. Playback was closed, the page returned to the empty dashboard, and the actual live view was visually inspected and captured. No microphone or graded activity was used for this live check.
+
+Every file in the complete 494-file Pages tree was matched by Git blob SHA with the reviewed build, including all 85 English MP3s. The standalone HTML with its embedded audio was also saved successfully. Documentation-only commits after the source commit do not alter this deployed application.
