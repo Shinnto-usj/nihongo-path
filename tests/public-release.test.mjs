@@ -15,11 +15,18 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Script } from 'node:vm';
+import {pronunciation as jaAudio} from '../content/pronunciation.js';
+import {pronunciation as enAudio} from '../english/content/pronunciation.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC_FILES = [
   '.nojekyll', 'app.js', 'assets/icon.svg', 'assets/journey.svg',
-  'content/course.js', 'index.html', 'lib/engine.js', 'lib/kana.js', 'styles.css',
+  'content/course.js', 'content/pronunciation.js', 'index.html', 'lib/engine.js', 'lib/kana.js', 'lib/pronunciation.js', 'styles.css',
+  'english/index.html', 'english/styles.css', 'english/app.js',
+  'english/content/course.js', 'english/content/studio.js',
+  'english/lib/engine.js', 'english/lib/pronunciation.js', 'english/content/pronunciation.js', 'english/assets/icon.svg',
+  ...new Set(Object.values(jaAudio.entries).map(entry => entry.src.slice(2))),
+  ...new Set(Object.values(enAudio.entries).map(entry => `english/${entry.src.slice(2)}`)),
 ].sort();
 const CANARY = 'PRIVATE_RELEASE_FIXTURE_DO_NOT_PUBLISH';
 let scratch, checkout, output, standalone, buildersCompleted = false;
@@ -35,13 +42,15 @@ before(async () => {
   output = join(checkout, 'dist');
   standalone = join(scratch, 'artifacts', 'Nihongo-Path.html');
   mkdirSync(checkout);
-  for (const path of ['index.html', 'styles.css', 'app.js', 'lib', 'content', 'assets', 'scripts', 'package.json']) {
+  for (const path of ['index.html', 'styles.css', 'app.js', 'lib', 'content', 'assets', 'scripts', 'package.json', 'english']) {
     cpSync(join(ROOT, path), join(checkout, path), { recursive: true });
   }
   // Root-local material and stale build artifacts must not survive the build.
   for (const path of [
     '.git/config', '.openai/hosting.json', '.env',
     'backups/nihongo-progress-local.json', 'private-personal-plan.json',
+    'content/private-notes.json', 'lib/private-debug.json', 'assets/private-sample.txt',
+    'assets/audio/private-sample.mp3', 'english/assets/audio/private-sample.mp3',
     'dist/.openai/hosting.json', 'dist/.env', 'dist/nihongo-progress-stale.json',
   ]) writeFixture(join(checkout, path), CANARY);
   const packageData = JSON.parse(readFileSync(join(checkout, 'package.json'), 'utf8'));
@@ -109,7 +118,7 @@ function assertCommonPolicy(policy) {
     'default-src', 'connect-src', 'script-src-attr', 'font-src', 'object-src',
     'frame-src', 'worker-src', 'base-uri', 'form-action',
   ]) assert.deepEqual(policy.get(directive), ["'none'"], `${directive} must remain closed`);
-  assert.deepEqual(policy.get('media-src'), ['blob:'], 'Local microphone playback must be allowed without remote media');
+  assert.ok(policy.has('media-src'), 'Audio must have an explicit policy');
   for (const directive of ['script-src', 'script-src-elem', 'script-src-attr']) {
     const values = policy.get(directive) || [];
     for (const forbidden of ["'unsafe-inline'", "'unsafe-eval'", '*', 'data:', 'blob:', 'https:', 'http:']) {
@@ -174,6 +183,7 @@ test('the hosted HTML has a preceding CSP that permits same-origin modules witho
   assert.deepEqual(policy.get('script-src'), ["'self'"]);
   assert.deepEqual(policy.get('style-src'), ["'self'"]);
   assert.deepEqual(policy.get('img-src'), ["'self'"]);
+  assert.deepEqual(policy.get('media-src'), ["'self'", 'blob:'], 'Only first-party course audio and local recordings are allowed');
   const scripts = inlineBlocks(html, 'script');
   assert.equal(scripts.length, 1);
   assert.equal(attribute(scripts[0].attributes, 'type'), 'module');
@@ -194,11 +204,15 @@ test('standalone CSP hashes match the exact final embedded script and stylesheet
   assert.deepEqual(policy.get('script-src'), [hashSource(scripts[0].text)]);
   assert.deepEqual(policy.get('style-src'), [hashSource(styles[0].text)]);
   assert.deepEqual(policy.get('img-src'), ['data:']);
+  assert.deepEqual(policy.get('media-src'), ['data:', 'blob:'], 'Standalone course audio is embedded');
+  assert.match(scripts[0].text, /data:audio\/mpeg;base64,/);
   // Inspect document markup, not HTML templates inside the embedded application.
   const markup = html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, '');
-  for (const match of markup.matchAll(/\b(?:src|href)\s*=\s*(["'])(.*?)\1/gi)) {
-    assert.ok(match[2].startsWith('#') || match[2].startsWith('data:'), 'Standalone markup must not fetch an external asset');
+  for (const element of markup.matchAll(/<(?:script|link|img|audio|video|source)\b[^>]*>/gi)) {
+    for (const match of element[0].matchAll(/\b(?:src|href)\s*=\s*(["'])(.*?)\1/gi)) {
+      assert.ok(match[2].startsWith('#') || match[2].startsWith('data:'), 'Standalone markup must not fetch an external asset');
+    }
   }
 });
 

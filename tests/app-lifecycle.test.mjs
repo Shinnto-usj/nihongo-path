@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { course } from '../content/course.js';
+import { createPronunciationPlayer, normalizePronunciationText } from '../lib/pronunciation.js';
 import {
   STORAGE_KEY, defaultState, recordActivity, recordAssessment, recordLesson,
   exportState, importState, saveState,
@@ -35,10 +36,11 @@ function namedFunction(name, nextName) {
 }
 
 const HANDLERS = [
-  namedFunction('closeModal', 'setSession'),
+  namedFunction('openModal', 'setSession'),
+  namedFunction('speechButtons', 'startLesson'),
   namedFunction('renderReview', 'rateCard'),
   namedFunction('saveFocus', 'assessmentForm'),
-  namedFunction('speak', 'startRecording'),
+  namedFunction('pronunciationLabel', 'startRecording'),
   namedFunction('startRecording', 'stopRecording'),
   namedFunction('stopRecording', 'exportProgress'),
   namedFunction('finishQuestions', 'redoMistakes'),
@@ -55,10 +57,13 @@ assert(timerStart >= 0 && timerEnd > timerStart, 'Missing active-time clock');
 const VISIBILITY_EVENTS = APP.slice(lifecycleEnd, timerStart);
 const CLOCK = APP.slice(timerStart, timerEnd + '},1000);'.length);
 
-function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds: 0 }, initialState = defaultState(NOW) } = {}) {
-  const calls = { requests: [], recorders: [], stops: [], persisted: [], messages: [], renders: 0, spoken: [], spokenVoices: [], blobs: [], events: new Map(), documentEvents: new Map(), intervals: [], timeouts: [] };
+function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds: 0 }, initialState = defaultState(NOW),
+  pronunciation = { schemaVersion: 1, label: '预生成神经合成语音', entries: {} } } = {}) {
+  const calls = { requests: [], recorders: [], stops: [], persisted: [], messages: [], renders: 0, spoken: [], spokenVoices: [], spokenRates: [], audio: [], blobs: [], events: new Map(), documentEvents: new Map(), intervals: [], timeouts: [] };
   const elements = new Map([
-    ['#modal', { open: true, close() { this.open = false; } }],
+    ['#modal', { open: true, close() { this.open = false; }, showModal() { this.open = true; }, setAttribute() {} }],
+    ['#modal-content', { set innerHTML(body) { calls.lastModal = { body }; } }],
+    ['#modal-title', { focus() {} }],
     ['#recording-status', { textContent: '' }],
     ['[data-action="record"]', { disabled: false }],
     ['[data-action="stop-record"]', { disabled: true }],
@@ -75,18 +80,27 @@ function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds:
     addEventListener: (_name, fn) => voiceListeners.add(fn),
     removeEventListener: (_name, fn) => voiceListeners.delete(fn),
     cancel() {},
-    speak(utterance) { calls.spoken.push(utterance.text); calls.spokenVoices.push(utterance.voice); },
+    speak(utterance) { calls.spoken.push(utterance.text); calls.spokenVoices.push(utterance.voice); calls.spokenRates.push(utterance.rate); },
   };
   class FakeRecorder {
     constructor(stream) { this.stream = stream; this.state = 'inactive'; this.mimeType = 'audio/webm'; calls.recorders.push(this); }
     start() { this.state = 'recording'; }
     stop() { this.state = 'inactive'; calls.stops.push(() => this.onstop?.()); }
   }
+  class FakeAudio {
+    constructor() { this.paused = true; this.preservesPitch = false; calls.audio.push(this); }
+    play() { this.paused = false; return new Promise((resolve, reject) => { this.resolvePlay = resolve; this.rejectPlay = reject; }); }
+    pause() { this.paused = true; }
+    removeAttribute(name) { delete this[name]; }
+    load() {}
+  }
   const context = {
-    initialSession, initialState, course, STORAGE_KEY, Blob, Date, structuredClone,
-    console, document: { hidden: false, addEventListener: (name, fn) => calls.documentEvents.set(name, fn) },
+    initialSession, initialState, course, pronunciation, createPronunciationPlayer, normalizePronunciationText,
+    STORAGE_KEY, Blob, Date, structuredClone, Audio: FakeAudio,
+    console, document: { hidden: false, baseURI: 'https://example.test/nihongo-path/', addEventListener: (name, fn) => calls.documentEvents.set(name, fn) },
     performance: { now: () => perf },
     $: selector => elements.get(selector),
+    $$: selector => selector === '[data-speech-key]' ? [...elements.values()].filter(el => el.dataset?.speechKey) : [],
     window: { speechSynthesis: synth, addEventListener: (name, fn) => calls.events.set(name, fn) },
     navigator: { mediaDevices: { getUserMedia: () => new Promise(resolve => calls.requests.push(resolve)) } },
     MediaRecorder: FakeRecorder,
@@ -96,6 +110,7 @@ function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds:
       revokeObjectURL() {},
     },
     setTimeout: fn => { calls.timeouts.push(fn); return calls.timeouts.length; },
+    clearTimeout() {},
     setInterval: fn => { calls.intervals.push(fn); return calls.intervals.length; },
     recordActivity: (state, data) => recordActivity(state, plain(data), NOW),
     recordAssessment: (state, data) => recordAssessment(state, plain(data), NOW),
@@ -108,24 +123,29 @@ function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds:
     esc: value => String(value ?? ''), icon: () => '', button: text => text,
     percent: (a, b) => b ? Math.round(a / b * 100) : 0,
     formatTime: seconds => String(Math.floor(seconds)),
-    openModal: (title, body) => { calls.lastModal = { title, body }; },
   };
   vm.createContext(context);
   vm.runInContext(`
     let session=initialSession,state=initialState,recorder=null,audioStream=null,
       recordingUrl=null,recordingPending=false,recordingGeneration=0,speechRequest=0,
+      activeSpeechKey='',speechUtterance=null,
       pendingImport=null,lastTick=0,lastInteraction=Date.now();
     function persist(){persistSnapshot(state);}
     ${HANDLERS}
+    const pronunciationPlayer=createSpeechPlayer();
     ${LIFECYCLE_EVENTS}
     ${VISIBILITY_EVENTS}
     ${CLOCK}
-    globalThis.subject={startRecording,stopRecording,closeModal,speak,saveFocus,
+    globalThis.subject={startRecording,stopRecording,openModal,closeModal,speak,stopSpeech,saveFocus,pronunciationLabel,speechButtons,
       prepareToLeave,renderReview,finishQuestions,getMistakes,
       state:()=>state,session:()=>session,recorder:()=>recorder};
   `, context);
   return {
     ...context.subject, calls, elements,
+    speechLabel(text) {
+      const label = { dataset: { speechKey: normalizePronunciationText(text) }, textContent: '' };
+      elements.set(`status-${elements.size}`, label); return label;
+    },
     stream(name) {
       const track = { name, stopped: false, stop() { this.stopped = true; } };
       return { track, getTracks: () => [track] };
@@ -264,6 +284,72 @@ test('remote or unspecified Japanese voices never become an automatic fallback',
     assert.deepEqual(app.calls.spoken, []);
     assert(app.calls.messages.some(message => /本地日语声线/u.test(message) && /下载|安装/u.test(message)));
   }
+});
+
+test('Japanese course audio is preferred at original speed, labels its source, and retains the slow control', async () => {
+  const text = 'こんにちは。';
+  const app = harness({ pronunciation: { schemaVersion: 1, entries: {
+    [text]: { src: './assets/audio/greeting.wav', label: '预生成神经合成语音' },
+  } } });
+  app.revealVoices(); const label = app.speechLabel(text);
+  const original = app.speak(text); const audio = app.calls.audio[0];
+  assert.equal(audio.src, 'https://example.test/nihongo-path/assets/audio/greeting.wav');
+  assert.equal(audio.playbackRate, 1); assert.equal(audio.preservesPitch, true);
+  audio.resolvePlay(); await original;
+  assert.deepEqual(app.calls.spoken, []);
+  assert.match(label.textContent, /预生成神经合成语音/u); assert.match(label.textContent, /原速/u);
+  const slower = app.speak(text, '0.65'); const slowAudio = app.calls.audio[1];
+  assert.equal(audio.paused, true); assert.equal(slowAudio.playbackRate, 0.65);
+  slowAudio.resolvePlay(); await slower; app.stopSpeech();
+  assert.equal(slowAudio.paused, true); assert.match(label.textContent, /已停止/u);
+});
+
+test('a failed human pronunciation asset uses only local Japanese fallback and updates the source label', async () => {
+  const text = 'あ';
+  const app = harness({ pronunciation: { schemaVersion: 1, entries: {
+    [text]: { src: './assets/audio/kana-a.mp3', label: '真人假名发音' },
+  } } });
+  const local = { lang: 'ja-JP', name: 'Installed Japanese', localService: true };
+  app.revealVoices([{ lang: 'ja-JP', name: 'Remote Japanese', localService: false }, local]);
+  const label = app.speechLabel(text);
+  assert.equal(app.pronunciationLabel(text), '真人假名发音');
+  const pending = app.speak(text); app.calls.audio[0].rejectPlay(new Error('Asset unavailable')); await pending;
+  assert.deepEqual(app.calls.spoken, [text]); assert.equal(app.calls.spokenVoices[0], local);
+  assert.match(label.textContent, /系统本地备用/u); assert.doesNotMatch(label.textContent, /真人/u);
+  assert.equal(app.calls.audio[0].paused, true); app.stopSpeech();
+});
+
+test('closing, changing exercise, hiding, leaving, and recording cancel late asset failure without speech', async () => {
+  for (const boundary of ['close', 'next-exercise', 'hidden', 'pagehide', 'record']) {
+    const app = harness({ pronunciation: { schemaVersion: 1, entries: {
+      '古い音声': { src: './assets/audio/old.wav', label: '预生成神经合成语音' },
+    } } });
+    app.revealVoices();
+    const pending = app.speak('古い音声'), audio = app.calls.audio[0]; let permission;
+    if (boundary === 'close') app.closeModal();
+    if (boundary === 'next-exercise') app.openModal('下一题', '<p>下一个练习</p>');
+    if (boundary === 'hidden') app.setHidden(true);
+    if (boundary === 'pagehide') app.calls.events.get('pagehide')();
+    if (boundary === 'record') permission = app.startRecording();
+    assert.equal((await pending).status, 'cancelled', boundary);
+    audio.rejectPlay(new Error('Late loading failure')); await Promise.resolve(); await Promise.resolve();
+    assert.equal(audio.paused, true, boundary); assert.deepEqual(app.calls.spoken, [], boundary);
+    if (permission) {
+      const stream = app.stream(); app.calls.requests[0](stream); await permission;
+      app.stopRecording(true); app.flushStops(); assert.equal(stream.track.stopped, true);
+    }
+  }
+});
+
+test('new profiles use original speed while explicitly saved older speeds remain intact', async () => {
+  assert.equal(defaultState(NOW).profile.speechRate, 1);
+  const old = defaultState(NOW); old.profile.speechRate = 0.85;
+  const restored = importState(exportState(old)); assert.equal(restored.profile.speechRate, 0.85);
+  const app = harness({ initialState: restored }); app.revealVoices();
+  await app.speak('以前の設定を保ちます。');
+  assert.deepEqual(app.calls.spokenRates, [0.85]);
+  await app.speak('ゆっくり。', '0.65');
+  assert.deepEqual(app.calls.spokenRates, [0.85, 0.65]); app.stopSpeech();
 });
 
 test('beforeunload followed by pagehide saves focus time and notes exactly once', () => {

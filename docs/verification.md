@@ -10,9 +10,13 @@ The current automated test results are:
 | --- | ---: | --- |
 | Learning engine | 28 | Timezones and date boundaries; streaks; due-card filtering; lapse and reentry schedules; failed and repeated lessons; the completion boundary; actual elapsed time and counts; import/export validation; unsafe input rejection; optional personal target dates and relative checkpoints |
 | Content | 11 | Answer validity; unique IDs; listening transcript separation; standalone question context; scenario reachability and successful paths; official HTTPS resource mappings; vocabulary consistency; checkpoint references |
-| Application lifecycle | 17 | Duplicate and late microphone requests; recorder cleanup; overlapping speech initialization; exactly-once persistence; result timing; cross-tab refresh; failed reattempt wording; wrong-question backup and resolution; focus restoration |
+| Application lifecycle | 21 | Duplicate and late microphone requests; recorder cleanup; overlapping speech initialization; exactly-once persistence; result timing; cross-tab refresh; failed reattempt wording; wrong-question backup and resolution; focus restoration |
 | Public release | 6 | Build whitelist and private canaries; exact standalone CSP hashes; preceding hosted CSP; restricted network and script execution; generic initial state |
-| **Total** | **62** | Tests run with the built-in Node.js test runner |
+| Audio playback | 11 | Same-origin and embedded audio, local fallback, stale callbacks, interruption, rate bounds |
+| Audio content | 4 | All 493 Japanese text keys, native priority, 389 real MP3 assets, bounded paths and frame validation |
+| **Japanese total** | **81** | Tests run with the built-in Node.js test runner |
+| **English companion** | **60** | See [English verification](../english/docs/verification.md) |
+| **Combined total** | **141** | 12 test files; all pass |
 
 Static build and JavaScript syntax checks have also passed. These checks do not require external services, credentials, model calls, or real microphone access.
 
@@ -53,14 +57,14 @@ The actual hosted document was inspected and contains the expected HTML CSP. The
 
 ## Verified limits
 
-- The earlier cloud test browser had no installed Japanese speech voice. The application reported this condition and provided text-assisted practice and links to official recordings. Actual voice quality and device-specific availability still require a capable device.
+- The earlier browser had no installed local Japanese voice. Version 1.2 plays the shipped audio without requiring a device voice; strictly local TTS remains a fallback. Automated decode checks and browser playback state do not establish subjective naturalness or certify Japanese pitch accent.
 - Microphone concurrency and track cleanup were tested with platform mocks. A real microphone was not requested during browser QA; real recording and playback require separate device verification after microphone permission is granted.
 - No account-based cloud synchronization is implemented. Export/import is the current cross-device mechanism. The storage listener handles ordinary cross-tab updates, but is not a transactional guarantee for simultaneous conflicting writes.
 - Ordinary focus exit saves once. A browser crash or operating-system termination is outside that guarantee.
 - Official materials link to primary publishers. Some direct JLPT page fetches timed out during source checking; official-domain search supplied their descriptions. Link purposes were cross-checked, not their permanent future availability.
 - Original exercises introduce study stages. They have not been statistically calibrated or certified by a human examiner. App percentages are not official JLPT scores, and course completion does not establish an N1 level.
 
-## Publication status
+## First published version (historical evidence)
 
 **Live and verified:** [https://shinnto-usj.github.io/nihongo-path/](https://shinnto-usj.github.io/nihongo-path/)
 
@@ -74,3 +78,16 @@ The actual hosted document was inspected and contains the expected HTML CSP. The
 - The final application page was visually inspected. Real device speech and microphone playback remain subject to the stated device-verification limits.
 
 `main` contains the source and documentation; `gh-pages` contains only the static release. Subsequent documentation-only commits do not change the published application. See [Publishing instructions](publishing.md) for the exact whitelist and update method.
+
+
+## Version 1.2 audio upgrade and English companion
+
+The Japanese catalog now has 493 normalized public text keys, including both kana scripts, every course `jp`/`audio` field, and the settings preview. It resolves to **389 distinct MP3s**: **34 native recordings** and **355 VOICEVOX Nemo neural clips**. The native files take priority only for their corresponding 68 hiragana/katakana keys. Contracted kana and phrases retain their own synthetic source labels. All 389 files completed full FFmpeg decoding without an error; exact coverage and MP3 frame checks also pass.
+
+The English companion includes 85 fixed Kokoro neural clips. Combined builds contain **494 files**: 19 named runtime files, one `.nojekyll`, and 474 referenced MP3s. No synthesis models, dependencies, local backups or generation caches enter either public tree. The release tests insert private canaries into runtime directories to verify this boundary.
+
+The playback helper permits only same-origin audio, or bounded embedded audio in the standalone build. It never constructs a media URL from a learner's input. Closing a practice, changing exercises, hiding the document, leaving the page or starting recording cancels prior playback and prevents late callbacks from restarting it. New defaults use 1.0; explicitly saved prior rates remain unchanged. Original-speed and slow controls can be used directly for listening.
+
+In the actual browser preview, a native あ recording and an English expression clip reached the playing state under the hosted CSP; a complete English listening scene also played, and its current source label survived revealing the transcript. Review grading advanced the queue normally. These are observed UI and playback-start checks, not an assertion that a human audited every pronunciation.
+
+Updated standalone builds embed their course MP3s and use final script/style CSP hashes. Their verified sizes are approximately 7.58 MB for Japanese and 11.39 MB for English. The actual HTTPS release will be documented below after successful deployment and inspection.

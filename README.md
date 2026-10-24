@@ -8,6 +8,8 @@ A Chinese-language Japanese learning workspace for complete beginners preparing 
 
 The GitHub Pages deployment and the actual HTTPS application have been verified.
 
+**English companion: [English Atelier](https://shinnto-usj.github.io/nihongo-path/english/)** — an advanced English practice studio with original expression lessons, listening judgments, speaking tasks, and personal samples. See [English documentation](english/README.md). It uses a separate browser-storage key; the Japanese entry remains at the root. The root build includes both apps.
+
 **Portable application:** build with `npm run standalone`, then open `dist/Nihongo-Path.html` in a current browser. A prebuilt self-contained HTML is included in the user handoff.
 
 **Online application:** the static build can be hosted on GitHub Pages. The public application contains general learning material; personal preferences and learning records stay in each browser. See [the publication guide](docs/publishing.md) for the exact release boundary.
@@ -24,7 +26,7 @@ The public version starts with **30 minutes/day** and no target date. Set your o
 - **133 vocabulary cards:** introduced through actual study, scheduled with a transparent small interval algorithm. Again=10 minutes, Hard=1 day, Good follows 1/3/7/14/30/60/90 days, Easy advances two rungs. This is not FSRS or a proficiency model.
 - **Persistent mistake practice:** independently incorrect or assisted answers appear in a separate queue; a subsequent independent correct answer resolves that item. This does not retroactively pass the original full lesson.
 - **8 branching residence scenarios:** cafe, convenience store, directions, lodging, housing repair, clinic communication, municipal counter, and neighbors. These are authored dialogues, not a generative conversation service.
-- **Speaking practice:** Japanese TTS uses only voices explicitly marked local by the browser. No remote voice fallback is allowed. Optional microphone recording requires a button click; collection stops when the page is hidden or the session closes. Recordings are temporary browser audio, not uploaded, transcribed, stored in backups, or assigned a pronunciation score.
+- **Speaking practice:** prerecorded native kana samples and pre-generated Japanese neural speech play from this site. Each playback identifies its source; VOICEVOX Nemo clips are synthetic, not human recordings. If an asset is unavailable, only browser voices explicitly marked local are eligible as a fallback. See [audio sources and terms](docs/audio-sources.md). Optional microphone recording requires a button click; collection stops when the page is hidden or the session closes. Recordings are temporary browser audio, not uploaded, transcribed, stored in backups, or assigned a pronunciation score.
 - **Focus timer:** counts elapsed time while explicitly running, continues in the background for external study materials, and records notes. Pause it when leaving study. Ordinary page exit saves the current focus entry once.
 - **Stage planning and evidence:** foundation→N5→N4→N3→N2→N1 checkpoints, official materials, in-course familiar-question samples, and separate external test records for vocabulary/grammar, reading, and listening raw percentages.
 - **Persistence and portability:** local browser state, resumable unfinished lessons, validated JSON import/export, and ordinary cross-tab storage refresh.
@@ -49,7 +51,7 @@ npm run standalone
 npm run preview
 ```
 
-Open http://localhost:4173 in a browser. `npm run preview` uses Python 3's static HTTP server. Alternatively serve `dist/` with any static host. Do not open the source `index.html` through `file://`, because that source uses JavaScript modules. The generated **Nihongo-Path.html** is different: scripts, styles, and illustrations are inlined, and it can be opened as one file without a local server. Browser storage and audio permissions still depend on the browser; export progress regularly.
+Open http://localhost:4173 in a browser. `npm run preview` uses Python 3's static HTTP server. Alternatively serve `dist/` with any static host. Do not open the source `index.html` through `file://`, because that source uses JavaScript modules. The generated **Nihongo-Path.html** is different: scripts, styles, illustrations, and the shipped course audio are inlined, and it can be opened as one file without a local server. Browser storage and audio permissions still depend on the browser; export progress regularly.
 
 Requirements: Node.js 22 or newer, Python 3 only for the provided preview command, and a current browser with ES modules, dialog, localStorage, and Intl support. All application paths are relative, so the generated `dist/` directory can be hosted beneath a repository subpath.
 
@@ -62,7 +64,9 @@ app.js                     Views, practice sessions, speech, recording, timer, i
 content/course.js          Original lessons, dialogues, resources, milestones
 lib/engine.js              State validation, schedules, scoring, dates, daily plan
 lib/kana.js                Kana pairs and sound notes
-assets/                    Original SVG illustration and icon
+lib/pronunciation.js       Static course-audio playback and strict local fallback
+content/pronunciation.js   Reviewed text-to-audio manifest
+assets/                    Original SVGs and manifest-owned course MP3s
 scripts/build.mjs          Copy the exact static application to dist/
 scripts/standalone.mjs     Create a self-contained distribution HTML
 scripts/validate-content.mjs Structural and pedagogical contract checks
@@ -76,9 +80,9 @@ To add a lesson, follow the existing content schema and run `npm run check` and 
 
 State is stored at `nihongo-path:v1`; unfinished lessons use `nihongo-path:active-session:v1` in the same browser. A regular JSON export contains profile preferences, course/card progress, daily totals, study notes, and assessment records; treat that backup as personal data. Clearing site data or switching device/browser does not transfer progress automatically. Export and import are the current transfer method.
 
-There is **no cloud progress sync**, GitHub authentication, analytics SDK, or external research/model call in the application. Progress belongs to the browser origin. Development preview data and the published site's data are separate. Microphone samples remain temporary browser blobs. Japanese TTS is restricted using the browser's `localService` flag; this flag is not a network sandbox for the operating system's voice implementation.
+There is **no cloud progress sync**, GitHub authentication, analytics SDK, or external research/model call in the application. Progress belongs to the browser origin. Development preview data and the published site's data are separate. Microphone samples remain temporary browser blobs. Fallback Japanese TTS is restricted using the browser's `localService` flag; this flag is not a network sandbox for the operating system's voice implementation.
 
-The online document restricts scripts and styles to this site's files, blocks application network connections, and allows temporary `blob:` audio playback. The portable build hashes its exact embedded script and stylesheet. The two generated progress-bar style attributes are allowed; inline JavaScript handlers are blocked. These content policies do not protect against a compromised first-party release, device, browser, or extension, and a meta policy cannot set `frame-ancestors` or HTTP response headers.
+The online document restricts scripts and styles to this site's files, blocks application network connections, and allows same-origin course audio plus temporary `blob:` recording playback. No synthesis service is called by the website and no practice text is sent for synthesis. The portable build embeds the course audio and hashes its exact embedded script and stylesheet. The two generated progress-bar style attributes are allowed; inline JavaScript handlers are blocked. These content policies do not protect against a compromised first-party release, device, browser, or extension, and a meta policy cannot set `frame-ancestors` or HTTP response headers.
 
 Records and exported JSON are not encrypted by this application. Back up regularly and keep backups private. GitHub Pages logs visitor IP addresses for security; this application does not upload study history. Different project paths under the same GitHub Pages hostname share browser origin storage. Use a dedicated hostname when hosting other applications that should not share this boundary. See [GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages) and [Web Storage](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API).
 
