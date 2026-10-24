@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 350" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">日々，街角的一间日式小店</title>
+  <desc id="desc">朱红太阳、绿色门帘、纸灯笼与窗边的书，象征日语走进日常生活。</desc>
+  <circle cx="316" cy="76" r="45" fill="#D7835F" opacity=".83"/>
+  <path d="M51 305h319" stroke="#A5B193" stroke-width="1.3"/>
+  <path d="M74 318h230M326 318h25" stroke="#BEC6AA" stroke-width="1"/>
+  <path d="M70 276V123l25-16h234v169" fill="#F9F6E9"/>
+  <path d="M70 276V123l25-16h234v169" stroke="#769077" stroke-width="1.5"/>
+  <path d="M66 123h269l-18-30H85L66 123Z" fill="#385E48"/>
+  <path d="M88 99h225M80 108h240M75 117h250" stroke="#6A8162" stroke-width="1"/>
+  <path d="M70 128h261" stroke="#436850" stroke-width="4"/>
+  <path d="M91 145h101v127H91V145Z" fill="#C6D1B0"/>
+  <path d="M97 151h88v121H97V151Z" fill="#8DA284"/>
+  <path d="M102 157h78v73h-78v-73Z" fill="#E6E9D1"/>
+  <path d="M140 157v73M102 192h78" stroke="#6F896A" stroke-width="3"/>
+  <path d="M150 240v13" stroke="#E5E6CF" stroke-width="3" stroke-linecap="round"/>
+  <path d="M90 273h105v8H90z" fill="#A0B18E"/>
+  <path d="M216 148h91v90h-91z" fill="#546F50"/>
+  <path d="M222 154h79v78h-79z" fill="#D6DEC1"/>
+  <path d="M261 154v78M222 190h79" stroke="#75916C" stroke-width="3"/>
+  <path d="M210 237h104v7H210z" fill="#9EA781"/>
+  <path d="M239 218h13l-2-15h-9l-2 15Z" fill="#CC9672"/>
+  <path d="M246 203c-6-2-9-8-5-12 5 3 6 6 5 12Z" fill="#799765"/>
+  <path d="M247 202c6-2 10-8 8-13-5 2-9 7-8 13Z" fill="#76915E"/>
+  <path d="M272 211h18v13h-18z" fill="#F5ECD4"/>
+  <path d="M290 215h4c4 0 4 6 0 6h-4" stroke="#F5ECD4" stroke-width="2"/>
+  <path d="M276 207c-3-3 2-4 0-7M284 207c-3-3 2-4 0-7" stroke="#F0F0DE" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M83 133h118v39c-8 4-16 4-24 0-8 4-16 4-24 0-8 4-16 4-24 0-8 4-16 4-24 0-8 4-15 4-22 0v-39Z" fill="#486D54"/>
+  <path d="M107 134v38M130 134v38M154 134v38M178 134v38" stroke="#E1E3CD" stroke-opacity=".45" stroke-width="1"/>
+  <text x="141" y="159" fill="#F3F0D8" text-anchor="middle" font-size="17" font-family="serif" letter-spacing="7">日々</text>
+  <path d="M319 130h25v8" stroke="#697B57" stroke-width="2"/>
+  <path d="M337 138h13v6h-13z" fill="#9E7253"/>
+  <path d="M336 144c-14 11-13 44 0 54h14c13-10 14-43 0-54h-14Z" fill="#D8845E"/>
+  <path d="M329 153h28M326 163h34M326 174h34M329 185h28" stroke="#E8AE7F" stroke-width="1"/>
+  <path d="M337 199h12v6h-12z" fill="#8C7452"/>
+  <text x="344" y="177" fill="#714F37" font-size="12" text-anchor="middle" font-family="serif">茶</text>
+  <path d="M216 269h83v7h-83z" fill="#9FA37C"/>
+  <path d="M224 276l-4 25M291 276l4 25" stroke="#758B68" stroke-width="4"/>
+  <path d="M251 263h25v6h-25z" fill="#D9A37B"/>
+  <path d="M255 256h24v7h-24z" fill="#A2B698"/>
+  <path d="M253 256v7M276 257v5" stroke="#ECEDDA" stroke-width="1"/>
+  <path d="M73 295h31l-4-32H77l-4 32Z" fill="#B88D65"/>
+  <path d="M76 266h26" stroke="#DEB68D" stroke-width="2"/>
+  <path d="M87 264v-41M89 246c-17 1-25-9-20-17 10-1 18 6 20 17ZM89 235c-2-14 7-25 16-22 2 10-5 20-16 22ZM87 255c4-16 17-21 23-16-1 10-11 16-23 16Z" stroke="#6A875E" stroke-width="2" fill="#7D9A6B"/>
+  <path d="M115 288h80v15h-80z" fill="#D9DDC1"/>
+  <path d="M122 289v13M132 289v13M142 289v13M152 289v13M162 289v13M172 289v13M182 289v13" stroke="#AFBC99" stroke-width="1"/>
+  <path d="M49 179v91M41 201h17M46 220h8" stroke="#BCC5AA" stroke-width="1.2"/>
+  <path d="M357 242v46M348 253h18" stroke="#B6C2A0" stroke-width="1.2"/>
+  <path d="m364 111 4-4m-4 4 4 4m-4-4-4 4m4-4-4-4" stroke="#B4C19F" stroke-width="1.2"/>
+  <path d="M195 64c5-4 10-4 15 0M181 73c5-4 10-4 15 0" stroke="#A4B395" stroke-width="1.2" stroke-linecap="round"/>
+  <text x="69" y="61" fill="#748C69" font-size="10" font-family="serif" letter-spacing="3">暮らしの中へ。</text>
+  <text x="327" y="336" fill="#859879" font-size="8" font-family="sans-serif" letter-spacing="2">DAY BY DAY</text>
+</svg>
