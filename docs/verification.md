@@ -43,13 +43,13 @@ QA learning records were isolated from the source package and are not part of th
 
 The final multi-file build and standalone HTML were both opened in the managed desktop preview with their actual CSP active. The application rendered and responded to its navigation. A saved target was cleared through the settings form, the budget was set to 30 minutes, and the settings persisted. The standalone dashboard then showed an empty target prompt, a 30-minute budget, and zero initial practice records. Earlier saved v1 settings also loaded without migration errors. Relative checkpoint dates were visibly calculated from the stored personal target.
 
-The latest checks did not repeat unchanged lesson flows already covered above. The actual GitHub Pages HTTPS origin remains unverified until Pages is enabled. Local preview success is not evidence of hosted availability.
+The latest checks did not repeat unchanged lesson flows already covered above. The actual GitHub Pages HTTPS origin has now also passed the checks below.
 
 ## Content security policy
 
 The multi-file application declares an HTML CSP that restricts scripts to local site resources. The standalone builder generates SHA-256 CSP hashes for its embedded script and stylesheet. The standalone output therefore does not rely on allowing arbitrary inline scripts.
 
-These protections are implemented in source. **Actual deployed HTTP response headers and hosted CSP behavior have not yet been verified.** A source declaration or local build is not evidence of the headers served by a hosting platform.
+The actual hosted document was inspected and contains the expected HTML CSP. The live page loaded its modules and assets and supported lesson interaction and saved settings under that policy. This verifies the HTML declaration and exercised behavior, not additional HTTP response headers, operating-system isolation, or the absence of all possible vulnerabilities.
 
 ## Verified limits
 
@@ -62,6 +62,15 @@ These protections are implemented in source. **Actual deployed HTTP response hea
 
 ## Publication status
 
-**独立仓库已创建；源码和发布文件已准备，等待 Pages 配置与线上验收。** The public release uses an independent repository with fresh history. Source files belong on `main`; the static build belongs at the root of `gh-pages`.
+**Live and verified:** [https://shinnto-usj.github.io/nihongo-path/](https://shinnto-usj.github.io/nihongo-path/)
 
-Publication remains incomplete until Pages is configured, deployment completes, and the actual HTTPS URL is verified. See [Publishing instructions](publishing.md) for the source whitelist and release contents. No online availability is claimed by this record.
+- Application source commit: `9a4f6b063ff983f5fcbafbb84cdcf89a12cfc022`.
+- Published `gh-pages` commit: `a4d3e271db2e711776255c873060db7c1de513a9`.
+- [GitHub Pages run 40107956815](https://github.com/Shinnto-usj/nihongo-path/actions/runs/40107956815) completed successfully; build, deployment, and status reporting all succeeded.
+- All nine files in the remote static tree were compared by Git blob SHA with the reviewed local build and matched exactly. No hosting identity, private history, credentials, progress backups, documentation, or test files entered the static branch.
+- The live HTTPS app rendered its zero-progress dashboard, opened the first lesson and quiz, and showed the correct feedback for a submitted answer.
+- A temporary target and daily budget were saved, then verified after reloading the actual hosted page.
+- The hosted import flow accepted a validated clean QA snapshot with a replacement confirmation. QA data and the suspended lesson were cleared. The final browser state has no target, a 30-minute budget, and no learned records.
+- The final application page was visually inspected. Real device speech and microphone playback remain subject to the stated device-verification limits.
+
+`main` contains the source and documentation; `gh-pages` contains only the static release. Subsequent documentation-only commits do not change the published application. See [Publishing instructions](publishing.md) for the exact whitelist and update method.

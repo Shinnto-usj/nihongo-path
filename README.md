@@ -4,6 +4,10 @@ A Chinese-language Japanese learning workspace for complete beginners preparing 
 
 ## Use the application
 
+**Live application: [https://shinnto-usj.github.io/nihongo-path/](https://shinnto-usj.github.io/nihongo-path/)**
+
+The GitHub Pages deployment and the actual HTTPS application have been verified.
+
 **Portable application:** build with `npm run standalone`, then open `dist/Nihongo-Path.html` in a current browser. A prebuilt self-contained HTML is included in the user handoff.
 
 **Online application:** the static build can be hosted on GitHub Pages. The public application contains general learning material; personal preferences and learning records stay in each browser. See [the publication guide](docs/publishing.md) for the exact release boundary.

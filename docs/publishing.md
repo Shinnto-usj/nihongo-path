@@ -1,6 +1,10 @@
 # 公开发布说明
 
-当前状态：**独立仓库已创建；源码和发布文件已准备，等待 Pages 配置与线上验收**。本文件说明发布结构和验收条件，不表示网站已经上线。
+当前状态：**已上线，并已核验实际 HTTPS 页面**。
+
+在线入口：[https://shinnto-usj.github.io/nihongo-path/](https://shinnto-usj.github.io/nihongo-path/)
+
+GitHub 已自动识别发布分支并完成部署。首次发布记录：[pages build and deployment](https://github.com/Shinnto-usj/nihongo-path/actions/runs/40107956815)。
 
 ## 独立仓库与干净历史
 
@@ -81,4 +85,4 @@ npm run build
 
 多文件网页已在 HTML 中声明内容安全策略，脚本从本站加载；单文件构建器对内嵌脚本和样式生成对应的 SHA-256 CSP hash。外部学习材料以普通链接提供，应用不需要远程代码依赖。
 
-这些实现已经进入源码，但部署后的实际 HTTP 响应头及托管环境中的策略执行尚未验证。公开发布验收应记录实际观察，不把本地实现等同于线上响应头已经确认。
+已在实际 HTTPS 页面的 DOM 中核对上述 HTML CSP，并验证页面、答题、设置保存及刷新恢复正常。未把这份 meta 策略当作已设置额外 HTTP 安全响应头；浏览器/系统语音的实现边界仍按 README 说明。
