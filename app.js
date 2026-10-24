@@ -1,5 +1,7 @@
 import { course } from './content/course.js';
+import { pronunciation } from './content/pronunciation.js';
 import { kana } from './lib/kana.js';
+import { normalizePronunciationText, createPronunciationPlayer } from './lib/pronunciation.js';
 import { STORAGE_KEY, defaultState, loadState, saveState, localDate, daysUntil, getStreak, dueCards, reviewCard, recordLesson, recordActivity, recordAssessment, getDailyPlan, getMilestoneDate, importState, exportState, checkAnswer, normalizeAnswer } from './lib/engine.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
@@ -38,6 +40,9 @@ let recordingUrl = null;
 let recordingPending = false;
 let recordingGeneration = 0;
 let speechRequest = 0;
+let activeSpeechKey = '';
+let speechUtterance = null;
+const pronunciationPlayer = createSpeechPlayer();
 const sessionKey = 'nihongo-path:active-session:v1';
 let suspended = null;
 try {const candidate=JSON.parse(localStorage.getItem(sessionKey)||'null'); if(candidate?.type === 'lesson' && course.lessons.some(l=>l.id===candidate.lessonId) && Number.isFinite(candidate.seconds) && candidate.seconds>=0 && Array.isArray(candidate.results) && candidate.results.length<100) suspended=candidate;} catch {}
@@ -66,6 +71,7 @@ function activateCards(cards) {
 }
 function navigate(next) {
   if (!routeTitles[next]) return;
+  stopSpeech();
   closeModal(); route=next;
   if (location.hash !== '#'+next) history.pushState(null,'','#'+next);
   render(); $('#main-content')?.focus({preventScroll:true}); window.scrollTo({top:0,behavior:'instant'});
@@ -110,7 +116,7 @@ function todayView() {
   return heading('一日、一歩。 / ONE DAY, ONE STEP','今天，也向日本近一点。','从第一声「あ」开始，把听、说、读变成每天的习惯。',`<span class="date-pill">${esc(dateLabel)}</span>`)+
   `<section class="hero"><div class="hero-content"><div class="hero-kicker"><span class="badge green">${completed?`已完成 ${completed} 个微课`:'零基础 · 欢迎开始'}</span><span>你的日本语学习之旅</span></div><h2 class="hero-title">学会今天的一句，<br>走进明天的日常。</h2><p class="hero-description">${next?`今天从「${esc(next.title)}」开始。先听一听，跟着说，再用一个小练习把它记住。`:'把学过的表达拿到真实语境中。今天继续阅读、听力和到期复习。'}</p><div class="hero-actions">${heroAction}${button('查看学习路线','open-course','ghost')}</div><div class="hero-meta"><span>${icon('time',16)} 第一轮约 ${next?.minutes||15} 分钟</span><span>中文引导 · 日语发音 · 自动保存</span></div></div><div class="hero-art"><img src="./assets/journey.svg" alt="日式街角的小店、纸灯笼与窗边的书" width="440" height="330"></div></section>`+
   `<div class="grid-3 stats-grid"><div class="stat-card"><div class="stat-label">今日已记录练习 ${icon('time',18)}</div><div class="stat-value">${studied}<small> / ${state.profile.dailyMinutes} 分钟</small></div><div class="progress-bar" role="progressbar" aria-label="今日学习目标" aria-valuenow="${Math.min(100,percent(studied,state.profile.dailyMinutes))}" aria-valuemin="0" aria-valuemax="100"><span style="width:${Math.min(100,percent(studied,state.profile.dailyMinutes))}%"></span></div></div><div class="stat-card"><div class="stat-label">连续练习 ${icon('spark',18)}</div><div class="stat-value">${getStreak(state)}<small> 天</small></div><span class="text-small text-muted">${getStreak(state)?'每一次实际练习，都算向前一步。':'今天可以是你的第一天。'}</span></div><div class="stat-card"><div class="stat-label">等待复习 ${icon('refresh',18)}</div><div class="stat-value">${due}<small> 张卡片</small></div><span class="text-small text-muted">只统计已学过且到期的内容</span></div></div>`+
-  `<div class="dashboard-grid"><div class="main-column"><section class="card"><div class="card-header"><div><p class="eyebrow">TODAY'S PRACTICE</p><h2 class="section-title">今天，从这里开始</h2></div><span class="badge neutral">按需选择练习</span></div><div class="task-list">${tasks.map((t,i)=>`<button class="task-row" data-action="${t.action}" ${t.id?`data-id="${esc(t.id)}"`:''} ${t.kind?`data-kind="${t.kind}"`:''}><span class="task-number">0${i+1}</span><span class="task-copy"><span class="task-title">${esc(t.title)}</span><span class="task-detail">${esc(t.detail)}</span></span><span class="task-time">约 ${t.time} 分钟 ${icon('arrow',16)}</span></button>`).join('')}</div></section><section class="card"><div class="card-header"><div><p class="eyebrow">A LITTLE MORE, EVERY DAY</p><h2 class="section-title">完整学习日 · ${state.profile.dailyMinutes} 分钟</h2></div>${button('开启专注','focus','secondary small')}</div><p class="section-subtitle">小练习之外，给完整课程、阅读和原声材料留出时间。计时结束后按实际用时记录。</p><div class="chip-row">${plan.blocks.map(b=>`<span class="chip">${esc(b.title)} <b>${b.minutes} 分</b></span>`).join('')}</div><p class="text-small text-muted">${esc(plan.warning||'每日时长是排程预算，不是 N1 达标承诺。每两周用测评调整进度。')}</p></section></div><div class="side-column"><section class="card"><div class="card-header"><h2 class="section-title">这周的脚印</h2><span class="text-small text-muted">${getStreak(state)} 天连续</span></div>${weekView()}<p class="text-small text-muted">练习或专注记录会点亮当天。</p></section><section class="journey-card"><p class="eyebrow">YOUR NORTH STAR</p><div class="journey-meta"><h2>N1</h2><span>目标路线</span></div><p>${state.profile.targetDate?esc(state.profile.targetDate.replaceAll('-','.'))+' 前':'请设置你的目标日期'}</p><div class="big-number">${days??'—'}<small> 天</small></div><p class="text-small">从零开始的挑战目标。先扎实练习，再用完整测评判断距离。</p>${button((days===null?'设置学习目标 ':'查看阶段与测评 ')+icon('arrow',16),days===null?'settings':'open-progress','ghost small')}</section><div class="note"><strong>先把一句话说出来</strong><p lang="ja" class="japanese">はじめまして。</p><p class="text-small">初次见面。${state.profile.showRomaji?'Hajimemashite.':''}</p>${button(icon('sound',16)+' 听一听','speak','ghost small','data-text="はじめまして。"')}</div></div></div>`;
+  `<div class="dashboard-grid"><div class="main-column"><section class="card"><div class="card-header"><div><p class="eyebrow">TODAY'S PRACTICE</p><h2 class="section-title">今天，从这里开始</h2></div><span class="badge neutral">按需选择练习</span></div><div class="task-list">${tasks.map((t,i)=>`<button class="task-row" data-action="${t.action}" ${t.id?`data-id="${esc(t.id)}"`:''} ${t.kind?`data-kind="${t.kind}"`:''}><span class="task-number">0${i+1}</span><span class="task-copy"><span class="task-title">${esc(t.title)}</span><span class="task-detail">${esc(t.detail)}</span></span><span class="task-time">约 ${t.time} 分钟 ${icon('arrow',16)}</span></button>`).join('')}</div></section><section class="card"><div class="card-header"><div><p class="eyebrow">A LITTLE MORE, EVERY DAY</p><h2 class="section-title">完整学习日 · ${state.profile.dailyMinutes} 分钟</h2></div>${button('开启专注','focus','secondary small')}</div><p class="section-subtitle">小练习之外，给完整课程、阅读和原声材料留出时间。计时结束后按实际用时记录。</p><div class="chip-row">${plan.blocks.map(b=>`<span class="chip">${esc(b.title)} <b>${b.minutes} 分</b></span>`).join('')}</div><p class="text-small text-muted">${esc(plan.warning||'每日时长是排程预算，不是 N1 达标承诺。每两周用测评调整进度。')}</p></section></div><div class="side-column"><section class="card"><div class="card-header"><h2 class="section-title">这周的脚印</h2><span class="text-small text-muted">${getStreak(state)} 天连续</span></div>${weekView()}<p class="text-small text-muted">练习或专注记录会点亮当天。</p></section><section class="journey-card"><p class="eyebrow">YOUR NORTH STAR</p><div class="journey-meta"><h2>N1</h2><span>目标路线</span></div><p>${state.profile.targetDate?esc(state.profile.targetDate.replaceAll('-','.'))+' 前':'请设置你的目标日期'}</p><div class="big-number">${days??'—'}<small> 天</small></div><p class="text-small">从零开始的挑战目标。先扎实练习，再用完整测评判断距离。</p>${button((days===null?'设置学习目标 ':'查看阶段与测评 ')+icon('arrow',16),days===null?'settings':'open-progress','ghost small')}</section><div class="note"><strong>先把一句话说出来</strong><p lang="ja" class="japanese">はじめまして。</p><p class="text-small">初次见面。${state.profile.showRomaji?'Hajimemashite.':''}</p>${speechButtons('はじめまして。')}</div></div></div>`;
 }
 function courseView() {
   const filtered=course.lessons.filter(l=>(lessonFilter==='all'||l.level===lessonFilter)&&(!lessonSearch||`${l.title} ${l.subtitle} ${l.canDo} ${l.level}`.toLowerCase().includes(lessonSearch.toLowerCase())));
@@ -158,12 +164,12 @@ function progressView() {
 }
 function settingsView() {
   return heading('MAKE IT YOURS','让计划，适合你的生活。','随时调整学习时间和旅居信息；每天打开后从上次的进度继续。')+
-  `<form id="settings-form" class="card"><div class="card-header"><h2 class="section-title">目标与节奏</h2></div><div class="form-grid"><label class="field">目标日期<input type="date" name="targetDate" value="${esc(state.profile.targetDate)}" min="2026-01-01" max="2035-12-31"><small>选择个人能力目标日，仅保存在此浏览器；它不代表正式考试日期。</small></label><label class="field">每日学习预算<select name="dailyMinutes">${[15,30,60,90,120,180,240,300,360,480].map(v=>`<option value="${v}" ${state.profile.dailyMinutes===v?'selected':''}>${v} 分钟${v===30?' · 通用起点':''}</option>`).join('')}</select><small>零基础到 N1 是高强度目标。时长只是预算，需要用实际测评调整。</small></label><label class="field">计划旅居城市<input name="city" value="${esc(state.profile.city)}" placeholder="还没确定也可以留空" maxlength="80"><small>选填，仅保存在当前浏览器。</small></label><label class="field">计划出发日期<input type="date" name="departureDate" value="${esc(state.profile.departureDate)}" min="2026-01-01" max="2035-12-31"><small>仅用于显示旅居准备信息，不改变能力评级。</small></label><label class="field">学习日时区<select name="timeZone">${[['Asia/Singapore','新加坡 / 香港 / 中国内地'],['Asia/Tokyo','日本'],['America/New_York','美国东部'],['America/Los_Angeles','美国西部'],['Etc/UTC','UTC']].map(([v,t])=>`<option value="${v}" ${state.profile.timeZone===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="field">示范语速<select name="speechRate">${[[0.65,'慢速 · 0.65'],[0.85,'学习 · 0.85'],[1,'自然 · 1.0']].map(([v,t])=>`<option value="${v}" ${Number(state.profile.speechRate)===v?'selected':''}>${t}</option>`).join('')}</select></label></div><label class="checkbox-field"><input type="checkbox" name="showRomaji" ${state.profile.showRomaji?'checked':''}> 显示罗马音提示（熟悉假名后可以关闭）</label><div class="form-actions"><button class="btn primary" type="submit">保存设置 ${icon('check',17)}</button></div></form>`+
-  `<section class="card"><div class="card-header"><div><h2 class="section-title">进度与备份</h2><p class="section-subtitle">学习记录保存在当前浏览器。换设备时先导出，再在新设备导入。</p></div></div><div class="form-actions">${button(icon('download',17)+' 导出学习进度','export','secondary')}<label class="btn secondary" for="import-file">导入已有进度<input id="import-file" type="file" accept=".json,application/json" class="sr-only"></label></div><p class="text-small text-muted">当前版本没有账号云同步。清除浏览器数据会删除本地进度；定期导出可以保留你的学习记录。</p></section><section class="card"><h2 class="section-title">发音与录音</h2><p>示范发音仅使用浏览器明确标记为本地的日语声线。没有本地声线时会提示安装，不自动切换到远程声线；实际音质取决于设备。</p>${button(icon('sound',16)+' 测试日语发音','speak','secondary','data-text="こんにちは。いっしょに日本語を勉強しましょう。"')}<p class="text-small text-muted">录音仅在你点击“开始录音”后请求麦克风，留在当前页面供回听，切到后台时停止采集，关闭练习后清除。不会上传、转写或自动评分。</p></section><section class="card"><h2 class="section-title">内容边界</h2><p>课程例句、练习和情境对话为原创。内置微课是日常练习与阶段导入；完整课程及原声输入通过官方材料补充。N1 目标不能由打卡或微课正确率直接确认。</p><p class="text-small text-muted">版本 1.1 · 目标与旅居设置由你决定 · 资料核对日期 2026-10-24</p></section>`;
+  `<form id="settings-form" class="card"><div class="card-header"><h2 class="section-title">目标与节奏</h2></div><div class="form-grid"><label class="field">目标日期<input type="date" name="targetDate" value="${esc(state.profile.targetDate)}" min="2026-01-01" max="2035-12-31"><small>选择个人能力目标日，仅保存在此浏览器；它不代表正式考试日期。</small></label><label class="field">每日学习预算<select name="dailyMinutes">${[15,30,60,90,120,180,240,300,360,480].map(v=>`<option value="${v}" ${state.profile.dailyMinutes===v?'selected':''}>${v} 分钟${v===30?' · 通用起点':''}</option>`).join('')}</select><small>零基础到 N1 是高强度目标。时长只是预算，需要用实际测评调整。</small></label><label class="field">计划旅居城市<input name="city" value="${esc(state.profile.city)}" placeholder="还没确定也可以留空" maxlength="80"><small>选填，仅保存在当前浏览器。</small></label><label class="field">计划出发日期<input type="date" name="departureDate" value="${esc(state.profile.departureDate)}" min="2026-01-01" max="2035-12-31"><small>仅用于显示旅居准备信息，不改变能力评级。</small></label><label class="field">学习日时区<select name="timeZone">${[['Asia/Singapore','新加坡 / 香港 / 中国内地'],['Asia/Tokyo','日本'],['America/New_York','美国东部'],['America/Los_Angeles','美国西部'],['Etc/UTC','UTC']].map(([v,t])=>`<option value="${v}" ${state.profile.timeZone===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="field">示范语速<select name="speechRate">${[[0.65,'慢速 · 0.65'],[0.85,'学习 · 0.85'],[1,'原速 · 1.0（建议）']].map(([v,t])=>`<option value="${v}" ${Number(state.profile.speechRate)===v?'selected':''}>${t}</option>`).join('')}</select></label></div><label class="checkbox-field"><input type="checkbox" name="showRomaji" ${state.profile.showRomaji?'checked':''}> 显示罗马音提示（熟悉假名后可以关闭）</label><div class="form-actions"><button class="btn primary" type="submit">保存设置 ${icon('check',17)}</button></div></form>`+
+  `<section class="card"><div class="card-header"><div><h2 class="section-title">进度与备份</h2><p class="section-subtitle">学习记录保存在当前浏览器。换设备时先导出，再在新设备导入。</p></div></div><div class="form-actions">${button(icon('download',17)+' 导出学习进度','export','secondary')}<label class="btn secondary" for="import-file">导入已有进度<input id="import-file" type="file" accept=".json,application/json" class="sr-only"></label></div><p class="text-small text-muted">当前版本没有账号云同步。清除浏览器数据会删除本地进度；定期导出可以保留你的学习记录。</p></section><section class="card"><h2 class="section-title">发音与录音</h2><p>优先播放随课程提供的真人发音或预生成神经合成语音；每条示范旁会显示来源。听整体节奏时建议选择 1.0 原速，需要拆开练习时再用慢速。</p>${speechButtons('こんにちは。いっしょに日本語を勉強しましょう。')}<p class="text-small text-muted">没有对应素材或素材暂时不可用时，使用设备已安装的日语声线作为备用；不会把输入文字发送到语音服务。真人音频、合成示范与自己的录音会分别标明。</p><p class="text-small text-muted">录音仅在你点击“开始录音”后请求麦克风，留在当前页面供回听，切到后台时停止采集，关闭练习后清除。不会上传、转写或自动评分。</p></section><section class="card"><h2 class="section-title">跟着真人听一小段</h2><p>IRODORI 官方入门课程：先听问候和请求重复，再模仿语气与停顿。以下链接在官方页面播放，适合与本应用的短句示范搭配练习。</p><div class="form-actions"><a class="btn secondary" href="https://www.irodori.jpf.go.jp/en/starter/audio/lesson01.html" target="_blank" rel="noopener noreferrer">第 1 课 · 日常问候 ↗</a><a class="btn secondary" href="https://www.irodori.jpf.go.jp/en/starter/audio/lesson02.html" target="_blank" rel="noopener noreferrer">第 2 课 · 听不懂时怎么办 ↗</a></div></section><section class="card"><h2 class="section-title">内容边界</h2><p>课程例句、练习和情境对话为原创。内置微课是日常练习与阶段导入；完整课程及原声输入通过官方材料补充。N1 目标不能由打卡或微课正确率直接确认。</p><p class="text-small text-muted">版本 1.2 · 目标与旅居设置由你决定 · 资料核对日期 2026-10-24</p></section>`;
 }
 
 function openModal(title, body, footer = '') {
-  speechRequest++; if('speechSynthesis' in window)window.speechSynthesis.cancel();
+  stopSpeech();
   $('#modal-content').innerHTML=`<div class="modal-header"><div><p class="eyebrow">日々 · PRACTICE</p><h2 class="modal-title" id="modal-title">${esc(title)}</h2></div><button class="close-button" data-action="close-modal" aria-label="关闭练习">${icon('close')}</button></div><div class="modal-body"><div id="modal-notice" class="note note-warning" role="status" hidden></div>${body}</div>${footer?`<div class="modal-footer">${footer}</div>`:''}`;
   $('#modal').setAttribute('aria-labelledby','modal-title');
   if(!$('#modal').open) $('#modal').showModal();
@@ -171,14 +177,13 @@ function openModal(title, body, footer = '') {
   lastInteraction=Date.now();
 }
 function closeModal() {
+  stopSpeech();
   if (!$('#modal')?.open) return;
   suspendSession();
   if(session?.type==='focus'&&!session.saved&&session.seconds>0) saveFocus(false);
   if(session?.type==='review'&&session.seconds>0){state=recordActivity(state,{seconds:Math.floor(session.seconds)});persist();}
   if(session?.type==='scenario'&&!session.saved&&session.seconds>0){state=recordActivity(state,{seconds:Math.floor(session.seconds)});persist();}
   stopRecording(true);
-  speechRequest++;
-  if('speechSynthesis' in window) window.speechSynthesis.cancel();
   $('#modal').close(); session=null; pendingImport=null;
   render();
 }
@@ -186,7 +191,7 @@ function setSession(value) {
   if($('#modal').open) closeModal();
   session={seconds:0,nonce:`${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,...value}; lastTick=performance.now(); lastInteraction=Date.now();
 }
-function speechButtons(text) {return `<div class="example-actions">${button(icon('sound',17)+' 听示范','speak','ghost small',`data-text="${esc(text)}"`)}${button('慢速','speak','ghost small',`data-text="${esc(text)}" data-speed="0.65"`)}</div>`;}
+function speechButtons(text) {return `<div class="example-actions">${button(icon('sound',17)+' 听示范','speak','ghost small',`data-text="${esc(text)}"`)}${button('原速','speak','ghost small',`data-text="${esc(text)}" data-speed="1"`)}${button('慢速','speak','ghost small',`data-text="${esc(text)}" data-speed="0.65"`)}${button('停止','stop-speech','ghost small')}<span class="text-small text-muted" data-speech-key="${esc(normalizePronunciationText(text))}" role="status" aria-live="polite">${esc(pronunciationLabel(text))} · ${Number(state.profile.speechRate)===1?'原速':`${esc(state.profile.speechRate)}×（当前设置）`}</span></div>`;}
 function startLesson(id) {
   const lesson=course.lessons.find(l=>l.id===id); if(!lesson)return;
   if(suspended?.lessonId===id){resumeLesson();return;}
@@ -217,7 +222,7 @@ function renderQuestion() {
   let right=q.answer;
   if(options.length)right=options.find(o=>String(o.id)===String(q.answer))?.text||q.answer;
   const feedback=result?`<div class="feedback ${result.correct?'correct':'incorrect'}" role="status"><strong>${result.correct?'答对了。':result.rawCorrect&&result.assisted?'答对了，这次有原文辅助。':'这题先记下来，下一次再见。'}</strong><p>参考答案：${esc(right)}</p><p>${esc(q.explanation)}</p>${result.assisted?'<p class="text-small">本题看过原文，不计入独立答对率。</p>':''}${audio?`<details ${session.showTranscript?'open':''}><summary>听力原文</summary><p lang="ja" class="japanese">${nl(q.audio)}</p></details>`:''}</div>`:'';
-  const body=`<div class="step-progress"><span>${session.type==='sample'?'课程熟题抽测':session.type==='mistake-bank'?'错题回看':session.type==='kana'?'五十音练习':session.mode==='mistakes'?'错题再练':'随堂练习'}</span><span>${session.index+1} / ${session.questions.length}</span></div><div class="progress-bar"><span style="width:${percent(session.index,session.questions.length)}%"></span></div><h3 class="question-prompt">${nl(q.prompt)}</h3>${audio?`<div class="listening-box">${button(icon('sound',24)+' 播放日语','speak','secondary audio-button',`data-text="${esc(q.audio)}"`)}${!result?button(session.showTranscript?'原文已显示':'需要帮助：查看原文','reveal-transcript','ghost small'):''}<p class="text-small text-muted">先听后答。设备无日语语音时可看原文完成辅助练习。</p></div>${session.showTranscript&&!result?`<div class="reading-block" lang="ja">${nl(q.audio)}</div>`:''}`:q.jp?`<div class="question-jp japanese" lang="ja">${nl(q.jp)}</div>`:''}${answerBody}${feedback}`;
+  const body=`<div class="step-progress"><span>${session.type==='sample'?'课程熟题抽测':session.type==='mistake-bank'?'错题回看':session.type==='kana'?'五十音练习':session.mode==='mistakes'?'错题再练':'随堂练习'}</span><span>${session.index+1} / ${session.questions.length}</span></div><div class="progress-bar"><span style="width:${percent(session.index,session.questions.length)}%"></span></div><h3 class="question-prompt">${nl(q.prompt)}</h3>${audio?`<div class="listening-box">${speechButtons(q.audio)}${!result?button(session.showTranscript?'原文已显示':'需要帮助：查看原文','reveal-transcript','ghost small'):''}<p class="text-small text-muted">先听后答。若素材与本地备用都不可用，可看原文完成辅助练习。</p></div>${session.showTranscript&&!result?`<div class="reading-block" lang="ja">${nl(q.audio)}</div>`:''}`:q.jp?`<div class="question-jp japanese" lang="ja">${nl(q.jp)}</div>`:''}${answerBody}${feedback}`;
   const footer=result?button(session.index+1===session.questions.length?'查看本轮结果':'下一题 '+icon('arrow'),'next-question'):button('还不会，看看解析','skip-question','ghost');
   openModal(session.title,body,footer); suspendSession();
 }
@@ -354,23 +359,57 @@ function assessmentForm(){
   const phase=getPhase();
   openModal('记录一次真实测评',`<p class="section-subtitle">记录新材料的各科原始正确率。官方 JLPT 使用标准分，本工具不把正确率换算成“通过分数”。</p><form id="assessment-form"><div class="form-grid"><label class="field">材料级别<select name="level">${levels.filter(l=>l!=='foundation').map(l=>`<option ${l===(phase==='foundation'?'N5':phase==='consolidation'?'N1':phase)?'selected':''}>${l}</option>`).join('')}</select></label><label class="field">完成日期<input type="date" name="date" value="${todayKey()}" max="${todayKey()}" required></label><label class="field span-2">材料名称<input name="source" maxlength="200" placeholder="填写实际做过的练习册、套题及回次" required></label><label class="field">语言知识正确率（%）<input type="number" name="knowledge" min="0" max="100" step="0.1" required></label><label class="field">阅读正确率（%）<input type="number" name="reading" min="0" max="100" step="0.1" required></label><label class="field">听力正确率（%）<input type="number" name="listening" min="0" max="100" step="0.1" required></label></div><label class="checkbox-field"><input type="checkbox" name="timed"> 按材料规定的时间完整作答</label><label class="checkbox-field"><input type="checkbox" name="unseen"> 第一次做这份材料，未提前看答案</label><label class="field">复盘备注<textarea name="note" maxlength="1500" placeholder="最容易卡在哪里？下周准备补什么？"></textarea></label><div class="form-actions"><button class="btn primary" type="submit">保存测评记录</button></div></form>`);
 }
+function pronunciationLabel(text){
+  const key=normalizePronunciationText(text),entry=Object.hasOwn(pronunciation.entries,key)?pronunciation.entries[key]:null;
+  return entry?(typeof entry==='string'?pronunciation.label:entry.label)||'预生成神经合成语音':'系统本地备用';
+}
+function setSpeechStatus(message){
+  for(const label of $$('[data-speech-key]'))if(label.dataset.speechKey===activeSpeechKey)label.textContent=message;
+}
+function createSpeechPlayer(){
+  return createPronunciationPlayer({
+    manifest:pronunciation,baseURL:document.baseURI,createAudio:()=>new Audio(),isHidden:()=>document.hidden,
+    stopFallback:()=>{if('speechSynthesis' in window)window.speechSynthesis.cancel();speechUtterance=null;},
+    onStatus:event=>{
+      if(event.state==='loading')setSpeechStatus(`正在载入 · ${event.label}`);
+      else if(event.state==='playing')setSpeechStatus(`正在播放 · ${event.label} · ${event.rate===1?'原速':`${event.rate}×`}`);
+      else if(event.state==='ended')setSpeechStatus(`${event.label} · 播放完成`);
+      else if(event.state==='fallback')setSpeechStatus('系统本地备用 · 正在准备声线');
+      else if(event.state==='unavailable')setSpeechStatus('暂无可用发音 · 可打开官方真人音频');
+      else if(event.state==='cancelled')setSpeechStatus(`${event.source==='local'?'系统本地备用':pronunciationLabel(activeSpeechKey)} · 已停止`);
+    },
+  });
+}
+function stopSpeech(){
+  speechRequest++;pronunciationPlayer.stop();speechUtterance=null;activeSpeechKey='';
+}
 async function speak(text,rate){
-  if(!text)return;
-  const request=++speechRequest;
-  if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('此浏览器不支持示范发音。请阅读文本，或使用课程中的官方音频入口。');return;}
+  if(!text||document.hidden)return;
+  stopSpeech();activeSpeechKey=normalizePronunciationText(text);
+  const request=speechRequest,playbackRate=Number(rate||state.profile.speechRate||1);
+  return pronunciationPlayer.play(text,{rate:playbackRate,fallback:({text:phrase,rate:speed,isCurrent})=>
+    speakLocal(phrase,speed,()=>isCurrent()&&request===speechRequest)});
+}
+async function speakLocal(text,rate,isCurrent){
+  if(!isCurrent()||document.hidden)return false;
+  if(!('speechSynthesis' in window)||typeof SpeechSynthesisUtterance==='undefined'){toast('这段示范音频暂不可用，此浏览器也不支持本地备用发音。可使用设置中的官方真人音频入口。');return false;}
   const synth=window.speechSynthesis;
   let voices=synth.getVoices();
-  if(!voices.length){await new Promise(resolve=>{const done=()=>{synth.removeEventListener('voiceschanged',done);resolve();};synth.addEventListener('voiceschanged',done);setTimeout(done,800);});voices=synth.getVoices();}
-  if(request!==speechRequest)return;
+  if(!voices.length){await new Promise(resolve=>{let timer;const done=()=>{clearTimeout(timer);synth.removeEventListener?.('voiceschanged',done);resolve();};synth.addEventListener?.('voiceschanged',done);timer=setTimeout(done,800);});voices=synth.getVoices();}
+  if(!isCurrent()||document.hidden)return false;
   const voice=voices.find(v=>v.localService===true&&/^ja(?:[-_]|$)/i.test(v.lang));
-  if(!voice){toast('未找到本地日语声线。请在系统设置中下载日语语音后重试，或打开课程中的官方音频。示范朗读仅使用本地语音。');return;}
-  synth.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang='ja-JP';utterance.voice=voice;utterance.rate=Number(rate||state.profile.speechRate);utterance.pitch=1;
-  utterance.onerror=event=>{if(!['interrupted','canceled'].includes(event.error))toast('语音播放未成功，请再点一次，或使用官方音频材料。');};
-  synth.speak(utterance);
+  if(!voice){toast('这段素材暂不可用，也未找到本地日语声线。请在系统设置中下载日语语音后重试，或打开官方真人音频。不会切换到远程语音。');return false;}
+  const utterance=new SpeechSynthesisUtterance(text);utterance.lang=voice.lang||'ja-JP';utterance.voice=voice;utterance.rate=rate;utterance.pitch=1;speechUtterance=utterance;
+  setSpeechStatus(`系统本地备用 · ${voice.name||'日语声线'} · ${rate===1?'原速':`${rate}×`}`);
+  utterance.onend=()=>{if(!isCurrent())return;speechUtterance=null;setSpeechStatus('系统本地备用 · 播放完成');};
+  utterance.onerror=event=>{if(!isCurrent()||['interrupted','canceled'].includes(event.error))return;speechUtterance=null;setSpeechStatus('系统本地备用 · 播放失败');toast('本地备用语音未能播放，请重试或使用官方真人音频。');};
+  if(!isCurrent()||document.hidden)return false;
+  synth.speak(utterance);return true;
 }
 async function startRecording(){
   if(document.hidden||recordingPending||recorder?.state==='recording')return;
   if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==='undefined'){toast('此浏览器不支持录音回放，请使用设备自带录音工具跟读。');return;}
+  stopSpeech();
   const generation=++recordingGeneration,nonce=session?.nonce;
   recordingPending=true;
   const startButton=$('[data-action="record"]');if(startButton)startButton.disabled=true;
@@ -436,7 +475,7 @@ const actions={
   'filter-lessons':el=>{lessonFilter=el.dataset.level;render();},'kana-mode':el=>{kanaMode=el.dataset.mode;render();},'kana-group':el=>{kanaGroup=el.dataset.group;render();},
   'kana-detail':el=>openKana(el.dataset.id),'kana-quiz':startKanaQuiz,
   'add-kana':el=>{const cards=kanaCatalog.filter(c=>c.sourceId===el.dataset.id);activateCards(cards);persist();toast('平假名和片假名已加入你的复习队列。');},
-  'speak':el=>speak(el.dataset.text,el.dataset.speed),'start-review':startReview,'mistake-practice':startMistakes,'reveal-card':()=>{session.revealed=true;renderReview();},'rate-card':el=>rateCard(el.dataset.grade),
+  'speak':el=>speak(el.dataset.text,el.dataset.speed),'stop-speech':stopSpeech,'start-review':startReview,'mistake-practice':startMistakes,'reveal-card':()=>{session.revealed=true;renderReview();},'rate-card':el=>rateCard(el.dataset.grade),
   'start-scenario':el=>startScenario(el.dataset.id),'scenario-answer':el=>scenarioAnswer(el.dataset.id),
   'scenario-next':()=>{session.nodeId=session.feedback.next;session.feedback=null;renderScenario();},
   'toggle-translation':()=>{session.showTranslation=!session.showTranslation;renderScenario();},
@@ -477,7 +516,7 @@ function prepareToLeave(){
   suspendSession();
   if(session?.type==='focus'&&!session.saved)saveFocus(false);
   if(session?.type==='review'&&session.stage!=='summary'&&session.seconds>0){state=recordActivity(state,{seconds:Math.floor(session.seconds)});session.seconds=0;persist();}
-  stopRecording(true); speechRequest++; if('speechSynthesis' in window)window.speechSynthesis.cancel();
+  stopRecording(true);stopSpeech();
 }
 window.addEventListener('beforeunload',prepareToLeave);
 window.addEventListener('pagehide',prepareToLeave);
@@ -489,6 +528,7 @@ window.addEventListener('storage',event=>{
 document.addEventListener('visibilitychange',()=>{
   if(session?.type!=='focus')lastTick=performance.now();
   suspendSession();
+  if(document.hidden)stopSpeech();
   if(document.hidden&&(recordingPending||recorder?.state==='recording')){
     const wasPending=recordingPending;
     stopRecording(false);
