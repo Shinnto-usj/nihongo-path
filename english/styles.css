@@ -4,3 +4,13 @@
 
 /* Keep instructional copy readable on warm paper and tinted cards. */
 :root{--muted:#626e58}.nav-item{color:#63705b}.storage-status,.date-tag,.page-heading p,.hero-copy>p,.stat-card .label,.stat-card .foot,.stat-card .number small,.task-subtitle,.task-meta,.section-intro,.lesson-card p,.studio-card p,.lesson-card .subtitle,.studio-card .subtitle,.lesson-card .card-bottom>span,.resource-row p,.resource-row small,.field-help,.settings-section p,.writing-meta,.question-meta,.dialog-footer>span,.recorder p,.timer-row small,.draft-card header,.draft-card .draft-text,.checklist,.dialog-body .intro,.dialog-body>p,.dialog-header .close,.option .letter{color:#626e58}.feedback{color:#526544}.feedback.incorrect{color:#7b543c}.note{color:#566b46}.note.neutral{color:#62685b}.phrase-card p{color:#786346}.tag{color:#637052}.page-footer,.sidebar-bottom a{color:#68745e}textarea::placeholder,input::placeholder{color:#737d66}.listen-panel p,.listen-panel .muted,.listen-panel .tiny,.score-block p{color:#647453}
+
+/* Contextual human examples use publisher links and existing local practice. */
+.human-practice { margin: 24px 0; padding: 18px; border: 1px solid var(--line, #dcded5); border-radius: 12px; }
+.human-practice details { padding: 12px 0; }
+.human-practice details + details { border-top: 1px solid var(--line, #dcded5); }
+.human-practice summary { cursor: pointer; font-weight: 600; line-height: 1.6; }
+.human-practice p, .human-practice li { line-height: 1.75; }
+.human-practice ol { padding-left: 1.5em; }
+.human-practice li + li { margin-top: 8px; }
+.human-practice a { overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }

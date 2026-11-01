@@ -404,5 +404,182 @@ export const milestones = [
   { id: 'm-n1', level: 'N1', title: '检验 N1 目标', fraction: 1, goal: '检验复杂/抽象文本和自然语速材料的理解能力。', checks: ['使用完整、未见过、限时的N1练习，记录至少两次独立结果。', '分别检查语言知识、阅读、听力；不要以总正确率掩盖单项不足。', '真人口语单独验收：解释问题、确认信息、处理误解，不把JLPT当口语认证。'], resourceIds: ['jlpt-levels', 'jlpt-workbook', 'jlpt-scoring'], note: '最终检查日由个人目标设置决定；这是复盘安排，非达标承诺或正式考试日期。' },
 ];
 
-export const course = { lessons, scenarios, resources, milestones };
+/** Original comparison tasks. Publisher recordings/transcripts stay on their sites.
+ * Verified against official track lists and scripts on 2026-11-01.
+ * These mappings do not certify the pronunciation of any synthesized clip. */
+const humanPractice = [
+  {
+    "id": "ja-human-greeting",
+    "title": "听真人如何打招呼和回应",
+    "lessonIds": [
+      "f06"
+    ],
+    "scenarioIds": [
+      "neighbor"
+    ],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson01.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第1课 · 真人教材录音",
+    "locator": "01-02（X_[01-02]_kiku1.mp3）；课文 L1-11",
+    "match": "同句：本课的问候句出现在双人对话中，回应方另有开头回应语。",
+    "focus": "比较主动打招呼与回答问候时的开头、整句连贯性和句尾；不以音色相似判断发音好坏。",
+    "steps": [
+      "打开官方页面，找到01-02，先完整听两个人怎样打招呼。",
+      "回到本课播放问候句，再听官方同句；一次只注意开头或句尾，不要求所有字一样响、一样长。",
+      "分别扮演先开口和回应的人，各说两次，然后不看文字完成一次问候。"
+    ],
+    "success": "能在两种角色中自然接上一句问候；仍拿不准的发音记为待练，不自动判为达标。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L01.pdf"
+  },
+  {
+    "id": "ja-human-thanks",
+    "title": "把感谢放回接受帮助的场景",
+    "lessonIds": [
+      "f06"
+    ],
+    "scenarioIds": [],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson01.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第1课 · 真人教材录音",
+    "locator": "01-20（X_[01-20]_kiku3.mp3）；课文 L1-13",
+    "match": "本课感谢与不好意思的表达出现在同一完整轮次中；官方对话还包含对方的开口和回应。",
+    "focus": "听接受帮助后的礼貌回应，比较短句之间如何衔接，而不是孤立模仿音色。",
+    "steps": [
+      "找到01-20完整听一次，先判断说话人为什么要感谢。",
+      "回本课听感谢句，再听官方回应；只观察句间衔接和一句话怎样结束。",
+      "想象别人给自己让座或递来物品，说出一次完整感谢，然后换一个接受帮助的情境再说。"
+    ],
+    "success": "能在接受帮助时连贯地表达感谢，并知道一句话的礼貌效果需要结合情境。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L01.pdf"
+  },
+  {
+    "id": "ja-human-repair",
+    "title": "听不清时，接着把交流完成",
+    "lessonIds": [
+      "f06"
+    ],
+    "scenarioIds": [
+      "hotel",
+      "convenience"
+    ],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson02.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第2课 · 真人教材录音",
+    "locator": "02-03：请求重复房号；02-02：请求放慢；课文 L2-11。模仿练习另见02-05／02-06、L2-3。",
+    "match": "02-03包含本课的重复请求；02-02使用较长的慢说请求，是同功能变体，不是逐字相同的对照音轨。",
+    "focus": "听出什么时候中断、怎样请求重复、对方重复后如何回应；一次只练一种修复方式。",
+    "steps": [
+      "先听02-03，第一次不看文字，只判断对话为什么停下来；再结合课文听一次。",
+      "回本课播放重复请求，自己说一次，再听官方对方重复后的回应。",
+      "把房号换成自己选的三位数，完成听不清、请求重复、确认三个动作；02-02的慢说请求可留到下一次。"
+    ],
+    "success": "没听清时能发出请求，并在对方重复后作出回应；不要求一次学会两套长句。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L02.pdf"
+  },
+  {
+    "id": "ja-human-long-vowels",
+    "title": "长音先听清，再放回整词",
+    "lessonIds": [
+      "f04",
+      "f05"
+    ],
+    "scenarioIds": [],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson01.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第1课 · 真人教材录音",
+    "locator": "01-34（X_[01-34]_hiragana_nobasu.mp3）；课文 L1-16，长音词表的第一个词",
+    "match": "与f05的长音目标词相同；对f04的咖啡等词是同技能参考。该轨道没有提供本课长短词对的完整A/B录音。",
+    "focus": "保留长音，同时保持整词连贯；按拍辅助只用于初步辨认，不把自然说话变成机械停顿。",
+    "steps": [
+      "找到01-34，对照L1-16辨认第一个词的长音，完整听一次再跟读。",
+      "在 f05 听同一个长音词；在 f04 则用咖啡一词做长音迁移，确认延长的位置，再连贯说两次。",
+      "关掉文字再说一次；若练咖啡等其他词，明确这是迁移练习，不能当作已取得该词的真人同句示范。"
+    ],
+    "success": "能指出并保留目标长音；长短词盲听仍需成对录音，本练习不替代那项检查。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L01.pdf"
+  },
+  {
+    "id": "ja-human-gemination",
+    "title": "听清小っ怎样连接前后音",
+    "lessonIds": [
+      "f05"
+    ],
+    "scenarioIds": [],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson01.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第1课 · 真人教材录音",
+    "locator": "01-35（X_[01-35]_hiragana_tsumaru.mp3）；课文 L1-16，促音词表",
+    "match": "同技能、不同词：官方轨道示范促音，本课邮票一词并非这段录音的逐字文本。",
+    "focus": "注意辅音衔接时的阻塞或延长；小っ不读成つ，也不使用独立假名录音拼出整词。",
+    "steps": [
+      "找到01-35，结合词表完整听一遍，只关注含小っ的位置。",
+      "回本课听邮票一词，再自己读两次；避免把小っ读成独立的つ。",
+      "完成本课促音听力题，再用不看文字的整词朗读检查自己是否遗漏了促音；听不准就保留待练。"
+    ],
+    "success": "能辨认小っ的位置并尝试保留促音；仍不能区分有无促音时，记为下一次的重点。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L01.pdf"
+  },
+  {
+    "id": "ja-human-cafe",
+    "title": "从点一杯咖啡练到接住店员问题",
+    "lessonIds": [
+      "n5-02",
+      "f04"
+    ],
+    "scenarioIds": [
+      "cafe"
+    ],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson06.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第6课 · 真人教材录音",
+    "locator": "06-01（X_[06-01]_kiku1.mp3）；课文 L6-15。数量补充见06-17。",
+    "match": "同场景、不同句：官方对话点热咖啡并回答尺寸及店内饮用问题；不是本课带一份或两份的逐字音轨。",
+    "focus": "关注点单后的接话、关键词和完整轮次；不要让一段孤立合成句承担整段对话的语调示范。",
+    "steps": [
+      "找到06-01，第一遍只抓饮品、尺寸、店内还是外带三个信息，必要时再看L6-15。",
+      "再听一次，扮顾客回答店员的问题；今天可以只练点单和一个回答。",
+      "学到 n5-02 后把咖啡数量从一份改为两份，需要时听06-17；目前在 f04 可先只辨认饮品词，完整点单留到 n5-02。"
+    ],
+    "success": "能点出饮品并接住至少一个后续问题；数量与场景信息不混淆。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L06.pdf"
+  },
+  {
+    "id": "ja-human-price",
+    "title": "询价后听清价格，再决定买不买",
+    "lessonIds": [
+      "n5-02"
+    ],
+    "scenarioIds": [],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson16.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第16课 · 真人教材录音",
+    "locator": "16-12（X_[16-12]_kiku2.mp3）；课文 L16-19。后续可听16-13的询价后不买场景。",
+    "match": "包含本课询价核心表达的完整场景；商品及后续回应不同，不是整段逐字相同的A/B。",
+    "focus": "听价格与购买决定；先处理一个信息点，再观察完整轮次中的停顿和接话。",
+    "steps": [
+      "找到16-12，第一遍只记价格；没听懂数字时允许查看L16-19再听。",
+      "第二遍判断顾客是否购买，再回本站播放询价句。",
+      "换成自己面前的一件物品询价并作出购买决定；下一次可听16-13，观察不买时怎样结束交流。"
+    ],
+    "success": "能提出询价，并依据听到的信息作出一个回应；数字仍听不清时明确记下。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L16.pdf"
+  },
+  {
+    "id": "ja-human-directions",
+    "title": "把问地点练成一次完整交流",
+    "lessonIds": [
+      "n5-03"
+    ],
+    "scenarioIds": [
+      "directions"
+    ],
+    "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson14.html",
+    "sourceTitle": "国际交流基金《いろどり》入门第14课 · 真人教材录音",
+    "locator": "14-01（X_[14-01]_kiku1.mp3）；课文 L14-15。模仿练习另见14-08。",
+    "match": "同句型、不同地点和方向答案：官方问厕所并得到方位指示，不是本站车站或左边句子的逐字音轨。",
+    "focus": "练引起注意、问地点、听方向、致谢四步；理解任务优先于模仿声音。",
+    "steps": [
+      "找到14-01完整听一次，辨认问题和指路答案；需要时对照L14-15。",
+      "回本站听问地点的句子，把目的地换成车站或厕所，自己说一次。",
+      "结合本课左和右的词汇，完成引起注意、问地点、确认方向、致谢四步；可用14-08继续模仿。"
+    ],
+    "success": "能完成一次简短问路交流，并知道自己听懂的是哪个方向；不把只会背问句当作整段交流完成。",
+    "transcriptUrl": "https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L14.pdf"
+  }
+];
+
+export const course = { lessons, scenarios, resources, milestones, humanPractice };
 export default course;
