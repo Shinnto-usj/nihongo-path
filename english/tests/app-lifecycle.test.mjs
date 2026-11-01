@@ -378,6 +378,28 @@ test('finishing while recording preserves the completed audio for playback and d
   assert(app.calls.revoked.includes(url));
 });
 
+test('Firefox default Ogg chunks receive an ogg download name when the recorder MIME is empty', async () => {
+  const app = harness(); app.startSession('speak', speaking[0].id);
+  const pending = app.startRecording(), stream = app.stream(); app.calls.requests[0].resolve(stream); await pending;
+  const recorder = app.recorder();
+  recorder.mimeType = ''; // Firefox 142 exposes the format on the data Blob instead.
+  recorder.stop = function () {
+    this.state = 'inactive';
+    app.calls.stops.push(() => {
+      this.ondataavailable({ data: new Blob(['local Ogg recording'], { type: 'audio/ogg; codecs=opus' }) });
+      this.onstop();
+    });
+  };
+  app.finishSession(); app.flushStops();
+  const download = app.elements.get('#recording-download');
+  assert.equal(app.calls.blobs.at(-1).type, 'audio/ogg; codecs=opus');
+  assert.equal(download.hidden, false);
+  assert.equal(download.href, app.recordingUrl());
+  assert.match(download.download, /^english-practice-.*\.ogg$/u);
+  assert.equal(stream.track.stopped, true);
+  app.closeSession();
+});
+
 test('listening output keeps its asynchronous recording download after saving and clears it on close', async () => {
   const app = harness(), item = listening[0];
   app.startSession('listen', item.id);

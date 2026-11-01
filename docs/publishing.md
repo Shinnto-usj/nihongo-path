@@ -15,7 +15,7 @@
 | 范围 | 明确允许的文件 |
 | --- | --- |
 | 日语运行文件 | `index.html`、`styles.css`、`app.js`、`lib/engine.js`、`lib/kana.js`、`lib/pronunciation.js`、`content/course.js`、`content/pronunciation.js`、`assets/icon.svg`、`assets/journey.svg` |
-| 日语素材证据 | `content/native-pronunciation.js`、`docs/audio-sources.md` |
+| 日语素材证据 | `content/native-pronunciation.js`、`docs/audio-sources.md`、`docs/human-speech-review-20261101.md` |
 | 日语项目说明 | `package.json`、`README.md`、`.gitignore`、`docs/curriculum.md`、`docs/verification.md`、`docs/publishing.md` |
 | 日语构建与检查 | `scripts/build.mjs`、`scripts/standalone.mjs`、`scripts/validate-content.mjs` |
 | 日语回归测试 | `tests/engine.test.mjs`、`tests/content.test.mjs`、`tests/app-lifecycle.test.mjs`、`tests/public-release.test.mjs`、`tests/pronunciation.test.mjs`、`tests/audio-content.test.mjs` |

@@ -2,7 +2,7 @@ import { course } from './content/course.js';
 import { pronunciation } from './content/pronunciation.js';
 import { kana } from './lib/kana.js';
 import { normalizePronunciationText, createPronunciationPlayer } from './lib/pronunciation.js';
-import { STORAGE_KEY, defaultState, loadState, saveState, localDate, daysUntil, getStreak, dueCards, reviewCard, recordLesson, recordActivity, recordAssessment, getDailyPlan, getMilestoneDate, importState, exportState, checkAnswer, normalizeAnswer } from './lib/engine.js';
+import { STORAGE_KEY, defaultState, saveState, localDate, daysUntil, getStreak, dueCards, reviewCard, recordLesson, recordActivity, recordAssessment, getDailyPlan, getMilestoneDate, importState, exportState, checkAnswer, normalizeAnswer } from './lib/engine.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -22,7 +22,9 @@ const todayKey = () => localDate(new Date(), state.profile.timeZone);
 const vocabCatalog = [...new Map(course.lessons.flatMap(l => l.vocab.map(v => [v.id, {...v,kind:'vocab',lessonId:l.id,level:l.level}]))).values()];
 const kanaCatalog = kana.flatMap(k => [{id:`kana-h-${k.id}`,jp:k.hiragana,kana:k.hiragana,romaji:k.romaji,zh:`平假名 · ${k.romaji}`,kind:'kana',sourceId:k.id}, {id:`kana-k-${k.id}`,jp:k.katakana,kana:k.katakana,romaji:k.romaji,zh:`片假名 · ${k.romaji}`,kind:'kana',sourceId:k.id}]);
 const cardCatalog = [...vocabCatalog, ...kanaCatalog];
-let state = loadState();
+let originalStoredProgress = null;
+let storageWriteBlocked = false;
+let state = loadProgress();
 let route = location.hash.slice(1).split('?')[0] || 'today';
 if (!routeTitles[route]) route = 'today';
 let lessonFilter = 'all';
@@ -47,11 +49,31 @@ const sessionKey = 'nihongo-path:active-session:v1';
 let suspended = null;
 try {const candidate=JSON.parse(localStorage.getItem(sessionKey)||'null'); if(candidate?.type === 'lesson' && course.lessons.some(l=>l.id===candidate.lessonId) && Number.isFinite(candidate.seconds) && candidate.seconds>=0 && Array.isArray(candidate.results) && candidate.results.length<100) suspended=candidate;} catch {}
 
-function persist() {
+function loadProgress() {
+  try {
+    originalStoredProgress=localStorage.getItem(STORAGE_KEY);
+    return originalStoredProgress===null?defaultState():importState(originalStoredProgress);
+  } catch {
+    storageWriteBlocked=true;
+    return defaultState();
+  }
+}
+function storageWarning() {
+  if(!storageWriteBlocked)return '';
+  return `<section class="note note-warning" role="status"><strong>现有学习记录未能读取，已暂停保存。</strong><p>原始记录不会被本页练习覆盖。请先导出备份，再到学习设置导入有效记录并确认替换；当前练习可另行导出保留。</p><div class="form-actions">${originalStoredProgress!==null?button('导出原始记录','export-original','secondary small'):''}${button('导出当前练习','export','secondary small')}${button('打开备份设置','settings','ghost small')}</div></section>`;
+}
+function persist({replace=false}={}) {
+  if(storageWriteBlocked&&!replace){
+    const status=$('#save-status');if(status)status.textContent='原始记录受保护 · 本页练习尚未保存';
+    toast('已暂停保存，避免覆盖原始记录。请先在学习设置导出备份，再确认导入有效记录。');
+    return false;
+  }
   const ok = saveState(state);
+  if(ok&&replace){storageWriteBlocked=false;originalStoredProgress=null;}
   const status = $('#save-status');
   if (status) status.textContent = ok ? '进度已保存在此浏览器' : '暂时无法保存 · 请导出备份';
   if (!ok) toast('浏览器存储不可用，请在设置中导出进度，避免丢失。');
+  return ok;
 }
 function toast(message) {
   const el=$('#toast'); el.textContent=message; el.classList.add('visible');
@@ -59,12 +81,13 @@ function toast(message) {
   clearTimeout(toastTimeout); toastTimeout=setTimeout(()=>{el.classList.remove('visible');el.textContent='';},6000);
 }
 function suspendSession() {
+  if(storageWriteBlocked)return;
   if (session?.type==='lesson' && session.stage!=='summary') {
     suspended=structuredClone(session);
     try {localStorage.setItem(sessionKey,JSON.stringify(suspended));} catch {}
   }
 }
-function clearSuspended() {suspended=null; try{localStorage.removeItem(sessionKey);}catch{}}
+function clearSuspended() {suspended=null;if(storageWriteBlocked)return;try{localStorage.removeItem(sessionKey);}catch{}}
 function activateCards(cards) {
   const now=new Date().toISOString();
   for (const card of cards) if (!state.cards[card.id]) state.cards[card.id]={due:now,intervalDays:0,reps:0,lapses:0,lastReviewed:now};
@@ -83,7 +106,8 @@ function render() {
   });
   const crumb=$('.breadcrumb'); if(crumb) crumb.innerHTML=`我的学习空间 <span> / ${routeTitles[route]}</span>`;
   const views={today:todayView,course:courseView,kana:kanaView,scenarios:scenariosView,review:reviewView,progress:progressView,settings:settingsView};
-  $('#app').innerHTML=views[route]();
+  $('#app').innerHTML=storageWarning()+views[route]();
+  if(storageWriteBlocked){const status=$('#save-status');if(status)status.textContent='原始记录受保护 · 本页练习尚未保存';}
   document.title=`${routeTitles[route]} · 日々 日本語`;
   $('#app').removeAttribute('aria-busy');
   const target=$('#sidebar-target-date'); if(target)target.textContent=state.profile.targetDate?state.profile.targetDate.replaceAll('-','.'):'设置目标日期';
@@ -441,8 +465,14 @@ async function startRecording(){
       if(audioStream===ownedStream)audioStream=null;
       if(recorder===activeRecorder)recorder=null;
       if(!activeRecorder.discard&&generation===recordingGeneration&&$('#modal').open&&session?.nonce===nonce){
-        recordingUrl=URL.createObjectURL(new Blob(chunks,{type:activeRecorder.mimeType||'audio/webm'}));
-        restoreRecordingPlayback();
+        const start=$('[data-action="record"]'),stop=$('[data-action="stop-record"]');if(start)start.disabled=false;if(stop)stop.disabled=true;
+        if(chunks.length){
+          recordingUrl=URL.createObjectURL(new Blob(chunks,{type:activeRecorder.mimeType||chunks[0].type||'audio/webm'}));
+          restoreRecordingPlayback();
+        }else{
+          const player=$('#mic-playback');if(player)player.hidden=true;
+          const label=$('#recording-status');if(label)label.textContent='没有获得可回听的录音，请重新开始。';
+        }
       }
       chunks.length=0;
     };
@@ -468,13 +498,25 @@ function stopRecording(discard=false){
 function exportProgress(){
   const blob=new Blob([exportState(state)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nihongo-progress-${todayKey()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('学习进度已导出。请保留这份 JSON 备份。');
 }
+function exportOriginalProgress(){
+  if(originalStoredProgress===null)return;
+  const blob=new Blob([originalStoredProgress],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nihongo-original-${todayKey()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('原始记录已原样导出，请保留这份文件。');
+}
+function applyImport(){
+  if(!pendingImport)return;
+  state=pendingImport;
+  const saved=persist({replace:true});
+  if(saved)clearSuspended();
+  closeModal();render();
+  toast(saved?'学习进度已导入。':'记录仅载入本页，尚未保存；请保留原始记录和导入文件。');
+}
 async function previewImport(file){
   if(!file)return;
   try{
     if(file.size>5*1024*1024)throw new Error('备份文件过大，请选择本应用导出的 JSON 文件。');
     const candidate=importState(await file.text());
     setSession({type:'import'});pendingImport=candidate;
-    openModal('确认导入学习进度',`<div class="note note-warning"><strong>这会替换当前浏览器里的学习记录。</strong><p>建议先导出当前记录作备份。导入文件的内容已通过格式检查。</p></div><div class="stat-list"><p>复习卡片：${Object.keys(candidate.cards).length} 张</p><p>课程记录：${Object.keys(candidate.lessons).length} 项</p><p>学习日记录：${Object.keys(candidate.daily).length} 天</p><p>目标日期：${esc(candidate.profile.targetDate)}</p></div>`,`${button('先导出当前记录','export','secondary')}${button('确认替换并导入','apply-import')}`);
+    openModal('确认导入学习进度',`<div class="note note-warning"><strong>这会替换当前浏览器里的学习记录。</strong><p>建议先导出当前记录作备份。导入文件的内容已通过格式检查。</p></div><div class="stat-list"><p>复习卡片：${Object.keys(candidate.cards).length} 张</p><p>课程记录：${Object.keys(candidate.lessons).length} 项</p><p>学习日记录：${Object.keys(candidate.daily).length} 天</p><p>目标日期：${esc(candidate.profile.targetDate)}</p></div>`,`${storageWriteBlocked&&originalStoredProgress!==null?button('先导出原始记录','export-original','secondary'):''}${button('先导出当前记录','export','secondary')}${button('确认替换并导入','apply-import')}`);
   }catch(error){toast(`未导入：${error.message}`);}
 }
 
@@ -495,8 +537,8 @@ const actions={
   'focus':el=>startFocus(el?.dataset?.kind||'course'),
   'toggle-focus':()=>{session.running=!session.running;lastTick=performance.now();const el=$('[data-action="toggle-focus"]');el.textContent=session.running?'暂停计时':'开始 / 继续';$('#timer-status').textContent=session.running?'计时中 · 离开学习时请暂停':'已暂停，准备好后继续。';},
   'finish-focus':()=>{saveFocus();closeModal();},'add-assessment':assessmentForm,'sample-assessment':el=>startSample(el.dataset.level),
-  'record':startRecording,'stop-record':()=>stopRecording(false),'export':exportProgress,
-  'apply-import':()=>{if(!pendingImport)return;const candidate=pendingImport;state=candidate;clearSuspended();persist();closeModal();render();toast('学习进度已导入。');}
+  'record':startRecording,'stop-record':()=>stopRecording(false),'export':exportProgress,'export-original':exportOriginalProgress,
+  'apply-import':applyImport
 };
 document.addEventListener('click',event=>{
   lastInteraction=Date.now();
@@ -514,7 +556,7 @@ document.addEventListener('submit',event=>{
   if(event.target.id==='settings-form'){
     event.preventDefault();const data=new FormData(event.target);
     const profile={...state.profile,targetDate:data.get('targetDate'),dailyMinutes:Number(data.get('dailyMinutes')),city:String(data.get('city')).trim(),departureDate:String(data.get('departureDate')),timeZone:data.get('timeZone'),speechRate:Number(data.get('speechRate')),showRomaji:data.has('showRomaji')};
-    try{state=importState(JSON.stringify({...state,profile}));persist();render();toast('设置已保存。下一轮学习会使用新的节奏。');}catch(error){toast(`未保存：${error.message}`);}
+    try{state=importState(JSON.stringify({...state,profile}));const saved=persist();render();toast(saved?'设置已保存。下一轮学习会使用新的节奏。':'设置暂存本页，请导出当前练习；原始记录保持原样。');}catch(error){toast(`未保存：${error.message}`);}
   }
   if(event.target.id==='assessment-form'){
     event.preventDefault();const data=new FormData(event.target);const source=String(data.get('source')).trim();
@@ -560,4 +602,4 @@ setInterval(()=>{
 },1000);
 render();
 $('#app').removeAttribute('aria-busy');
-if(loadState.lastError)toast(loadState.lastError+' 原始记录尚未覆盖，请先检查备份。');
+if(storageWriteBlocked)toast('现有学习记录未能读取，已暂停保存。请先导出原始记录，再确认导入有效备份。');

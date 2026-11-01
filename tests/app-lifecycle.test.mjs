@@ -209,8 +209,51 @@ test('an old recording stop callback cannot stop or replace the next recording',
   assert.equal(newStream.track.stopped, false);
   assert.equal(app.recorder(), newRecorder);
   assert.equal(app.calls.blobs.length, 0, 'stale recording must not replace the new playback');
+  assert.equal(app.elements.get('[data-action="record"]').disabled, true, 'a stale stop cannot enable a second recording');
+  assert.equal(app.elements.get('[data-action="stop-record"]').disabled, false, 'a stale stop cannot disable stopping the current recording');
   app.stopRecording(true); app.flushStops();
   assert.equal(newStream.track.stopped, true);
+});
+
+test('a browser-ended recording restores controls and permits an explicit new recording', async () => {
+  const app = harness(), stream = app.stream('browser-ended');
+  const pending = app.startRecording(); app.calls.requests[0](stream); await pending;
+  const recorder = app.recorder();
+  recorder.ondataavailable({ data: new Blob(['completed sample'], { type: 'audio/webm' }) });
+  recorder.stop(); // Simulate the browser ending capture without the app's stop handler.
+  app.flushStops();
+  assert.equal(stream.track.stopped, true);
+  assert.equal(app.recorder(), null);
+  assert.equal(app.elements.get('[data-action="record"]').disabled, false);
+  assert.equal(app.elements.get('[data-action="stop-record"]').disabled, true);
+  assert.equal(app.elements.get('#mic-playback').hidden, false);
+  assert.equal(app.elements.get('#mic-playback').src, 'blob:mock-1');
+
+  const nextStream = app.stream('explicit-retry');
+  const next = app.startRecording(); app.calls.requests[1](nextStream); await next;
+  assert.equal(app.recorder().state, 'recording');
+  assert.equal(nextStream.track.stopped, false);
+  assert.equal(app.calls.revoked.includes('blob:mock-1'), true);
+  app.stopRecording(true); app.flushStops();
+});
+
+test('a recording with no data restores controls without presenting an empty sample for playback', async () => {
+  const app = harness(), firstStream = app.stream('previous-sample');
+  const first = app.startRecording(); app.calls.requests[0](firstStream); await first;
+  app.recorder().ondataavailable({ data: new Blob(['previous sample']) });
+  app.stopRecording(false); app.flushStops();
+  assert.equal(app.elements.get('#mic-playback').hidden, false);
+
+  const emptyStream = app.stream('no-data');
+  const next = app.startRecording(); app.calls.requests[1](emptyStream); await next;
+  app.recorder().ondataavailable({ data: new Blob([]) });
+  app.recorder().stop(); app.flushStops();
+  assert.equal(emptyStream.track.stopped, true);
+  assert.equal(app.calls.blobs.length, 1, 'no new object URL is created for an empty recording');
+  assert.equal(app.elements.get('#mic-playback').hidden, true, 'the previous revoked sample is no longer offered');
+  assert.match(app.elements.get('#recording-status').textContent, /没有获得可回听的录音/u);
+  assert.equal(app.elements.get('[data-action="record"]').disabled, false);
+  assert.equal(app.elements.get('[data-action="stop-record"]').disabled, true);
 });
 
 test('a completed scenario recording survives translation, answer and dialogue refreshes', async () => {
@@ -275,6 +318,7 @@ test('hiding the page immediately stops microphone capture and returning does no
   const app = harness();
   const stream = app.stream('visible-recording');
   const pending = app.startRecording(); app.calls.requests[0](stream); await pending;
+  app.recorder().ondataavailable({ data: new Blob(['foreground sample']) });
   app.setHidden(true);
   assert.equal(stream.track.stopped, true, 'capture must stop before asynchronous onstop finishes');
   assert.equal(app.recorder(), null);
@@ -513,4 +557,114 @@ test('stored wrong-question history survives export and removes a question after
   state = recordAssessment(state, { kind: 'drill', title: 'Retry', results: [{ questionId: question.id, correct: true }] }, NOW);
   const after = harness({ initialState: importState(exportState(state)) });
   assert.equal(after.getMistakes().some(item => item.id === question.id), false);
+});
+
+// Exercise the real storage/import handlers without asking a browser to touch a
+// learner's records. Media tests above use their separate, unchanged harness.
+function storageHarness(raw, { failWrite = false } = {}) {
+  const values = new Map([[STORAGE_KEY, raw], ['nihongo-path:active-session:v1', 'retained-session'], ['english-atelier:v1', 'other-app-records']]);
+  if(raw===null)values.delete(STORAGE_KEY);
+  const calls={messages:[],blobs:[],downloads:[],renders:0,modal:null};
+  const elements=new Map([['#save-status',{textContent:''}]]);
+  const storage={
+    getItem:key=>values.has(key)?values.get(key):null,
+    setItem(key,value){if(failWrite)throw new Error('QuotaExceededError');values.set(key,value);},
+    removeItem:key=>values.delete(key),
+  };
+  const context={
+    STORAGE_KEY,defaultState,importState,exportState,Blob,structuredClone,
+    localStorage:storage,saveState:value=>saveState(value,storage),
+    $:selector=>elements.get(selector),
+    document:{createElement:()=>({click(){calls.downloads.push({href:this.href,name:this.download});}})},
+    URL:{createObjectURL(blob){calls.blobs.push(blob);return `blob:backup-${calls.blobs.length}`;},revokeObjectURL(){}},
+    setTimeout(){},todayKey:()=> '2026-11-01',
+    toast:message=>calls.messages.push(message),render:()=>{calls.renders++;},
+    esc:value=>String(value??''),button:(text,action)=>`<button data-action="${action}">${text}</button>`,
+    openModal:(title,body,footer)=>{calls.modal={title,body,footer};},
+  };
+  const startupStart=APP.indexOf('let originalStoredProgress = null;');
+  const startupEnd=APP.indexOf('let route =',startupStart);
+  const previewStart=APP.indexOf('async function previewImport(');
+  const previewEnd=APP.indexOf('const actions=',previewStart);
+  assert(startupStart>=0&&startupEnd>startupStart&&previewStart>=0&&previewEnd>previewStart);
+  vm.createContext(context);
+  vm.runInContext(`
+    ${APP.slice(startupStart,startupEnd)}
+    let session=null,pendingImport=null,suspended=null;
+    const sessionKey='nihongo-path:active-session:v1';
+    function setSession(value){session=value;}
+    function closeModal(){session=null;pendingImport=null;}
+    ${namedFunction('loadProgress','toast')}
+    ${namedFunction('suspendSession','activateCards')}
+    ${namedFunction('exportProgress','previewImport')}
+    ${APP.slice(previewStart,previewEnd)}
+    globalThis.subject={persist,previewImport,applyImport,exportOriginalProgress,exportProgress,
+      suspendSession,clearSuspended,closeModal,
+      warning:storageWarning,state:()=>state,blocked:()=>storageWriteBlocked,
+      original:()=>originalStoredProgress,setSession};
+  `,context);
+  return {...context.subject,calls,elements,raw:()=>storage.getItem(STORAGE_KEY),
+    stored:key=>storage.getItem(key),setWriteFailure:value=>{failWrite=value;}};
+}
+
+test('unreadable Japanese progress stays protected through edits and session cleanup, and exports byte-for-byte',async()=>{
+  const unsupported=exportState(defaultState(NOW)).replace('"schemaVersion": 1','"schemaVersion": 2');
+  for(const raw of ['{not-json',unsupported,'']){
+    const app=storageHarness(raw);
+    assert.equal(app.blocked(),true);
+    assert.equal(app.raw(),raw);
+    assert.match(app.warning(),/data-action="export-original"/u);
+    app.state().profile.city='Temporary practice';
+    assert.equal(app.persist(),false,'ordinary practice cannot overwrite unreadable progress');
+    app.setSession({type:'lesson',stage:'questions',lessonId:'f01'});
+    app.suspendSession();app.clearSuspended();
+    assert.equal(app.stored('nihongo-path:active-session:v1'),'retained-session');
+    assert.equal(app.raw(),raw);
+    app.exportOriginalProgress();
+    assert.equal(await app.calls.blobs.at(-1).text(),raw);
+    assert.match(app.calls.downloads.at(-1).name,/^nihongo-original-.*\.json$/u);
+    assert.equal(app.stored('english-atelier:v1'),'other-app-records');
+  }
+});
+
+test('invalid or cancelled imports cannot unlock protected progress; confirmed valid import restores saving',async()=>{
+  const raw='{original-progress',app=storageHarness(raw),restored=defaultState(NOW);
+  restored.profile.city='Restored city';restored.profile.speechRate=0.85;
+  const backup=exportState(restored);
+  await app.previewImport(new Blob(['{bad-import']));
+  assert.equal(app.blocked(),true);assert.equal(app.raw(),raw);
+  await app.previewImport(new Blob([backup]));
+  assert.match(app.calls.modal.footer,/data-action="export-original"/u);
+  assert.match(app.calls.modal.footer,/data-action="apply-import"/u);
+  assert.equal(app.raw(),raw,'preview does not write the candidate');
+  app.closeModal();app.applyImport();
+  assert.equal(app.blocked(),true);assert.equal(app.raw(),raw,'cancelled confirmation cannot replace progress');
+  await app.previewImport(new Blob([backup]));app.applyImport();
+  assert.equal(app.blocked(),false);assert.equal(app.warning(),'');
+  assert.deepEqual(importState(app.raw()),restored);
+  assert.equal(app.stored('nihongo-path:active-session:v1'),null);
+  app.state().profile.city='Continued learning';
+  assert.equal(app.persist(),true);assert.equal(importState(app.raw()).profile.city,'Continued learning');
+  assert.equal(app.stored('english-atelier:v1'),'other-app-records');
+});
+
+test('a failed confirmed recovery keeps the original protected and never reports a successful import',async()=>{
+  const raw='{retained-on-quota',app=storageHarness(raw,{failWrite:true});
+  await app.previewImport(new Blob([exportState(defaultState(NOW))]));app.applyImport();
+  assert.equal(app.blocked(),true);assert.equal(app.raw(),raw);
+  assert.equal(app.stored('nihongo-path:active-session:v1'),'retained-session');
+  assert.doesNotMatch(app.calls.messages.at(-1),/已导入/u);
+  app.exportOriginalProgress();assert.equal(await app.calls.blobs.at(-1).text(),raw);
+  app.setWriteFailure(false);
+  assert.equal(app.persist(),false,'a later ordinary save must still not replace the protected original');
+});
+
+test('healthy prior v1 progress keeps its saved settings and achievements without a migration',()=>{
+  let previous=recordLesson(defaultState(NOW),{lessonId:'f01',correct:5,total:5,seconds:120},NOW);
+  previous.profile.city='Saved city';previous.profile.speechRate=0.85;
+  const raw=exportState(previous),app=storageHarness(raw);
+  assert.equal(app.blocked(),false);assert.equal(app.warning(),'');
+  assert.equal(app.raw(),raw,'initial load must not rewrite a healthy backup');
+  assert.deepEqual(app.state(),previous);
+  assert.equal(app.persist(),true);assert.deepEqual(importState(app.raw()),previous);
 });

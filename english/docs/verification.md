@@ -7,12 +7,12 @@
 | Learning engine | 20 | Validated state, timezone boundaries, review schedules, pass/assistance rules, retained samples, explicit budgets, backup round trips and malformed-input rejection |
 | Expression curriculum | 9 | 24 lessons, 72 unique questions/chunks, six tracks, meaningful feedback, output models, independent baseline contracts |
 | Listening and speaking | 5 | 12 complete listening scripts and 36 questions, 12 speaking tasks, six repeatable benchmarks, official source contracts |
-| Application lifecycle | 17 | First answer/one completion, dirty storage conflicts, import failures, microphone cancellation races, recording cleanup, elapsed time, voice selection, static audio, stale callbacks and old speech-rate preservation |
+| Application lifecycle | 19 | First answer/one completion, dirty storage conflicts, import failures, microphone cancellation races, recording cleanup, elapsed time, voice selection, static audio, stale callbacks and old speech-rate preservation |
 | Release packaging | 6 | Exact runtime/audio whitelist, private-canary exclusion, hosted CSP, exact standalone hashes and audio bytes, no outgoing API/eval, empty public initial state |
 | Audio catalog | 3 | All 85 fixed spoken texts, bounded present MP3s without extra files, identical shared playback helper |
-| **Total** | **60** | Built-in Node.js tests |
+| **Total** | **62** | Built-in Node.js tests |
 
-The repository root runs all Japanese and English suites together: 141 cases across 12 files. Both apps build without installing runtime dependencies.
+The repository root runs all Japanese and English suites together: 151 cases across 12 files. Both apps build without installing runtime dependencies.
 
 ## Audio verification
 
@@ -46,3 +46,13 @@ Application source commit: `64786f4a50e767810fe5779f3b1851873edd30dc`; Pages com
 The actual HTTPS entry rendered its zero-progress dashboard, 30-minute default plan and 24-unit catalog. Its first dialogue reached the playing state using the pre-generated audio at original speed. The live DOM carried the expected CSP, including same-origin media and no outgoing application connections. Playback was closed, the page returned to the empty dashboard, and the actual live view was visually inspected and captured. No microphone or graded activity was used for this live check.
 
 Every file in the complete 494-file Pages tree was matched by Git blob SHA with the reviewed build, including all 85 English MP3s. The standalone HTML with its embedded audio was also saved successfully. Documentation-only commits after the source commit do not alter this deployed application.
+
+## PR 1 independent acceptance — 2026-11-01
+
+The English suite now contains 62 cases, including the initial candidate's listening-result recording regression and a new Firefox Ogg download regression. All 12 repository test files passed the final release gate (151 total cases). See the [combined independent acceptance record](../../docs/verification.md#independent-acceptance-of-pr-1--2026-11-01) for the reviewed baseline, browser matrix and publication evidence.
+
+Chromium was used to complete `listen-02` through its real UI, record with a browser test audio source, save the exercise, replay the actual MediaRecorder Blob and download it from the result page. The practice entry was saved once, old practice and draft records remained, and the post-question comparison did not change the independent-answer assistance flag. The downloaded JSON contained written samples but no temporary recording data. Closing the practice released the recording; refreshing retained the written record. Literal HTML-like learner text remained text rather than executable markup. Invalid and cancelled imports left existing data intact.
+
+Firefox's actual default audio recording was Ogg/Opus even when `MediaRecorder.mimeType` was empty. Download naming now uses the data chunk's MIME type and preserves `.ogg`, `.m4a` or `.webm` as appropriate. A test-only null audio output resolved the isolated Linux playback-sink issue; no physical microphone was used. Linux WebKit lacks MediaRecorder in this environment and correctly offers the existing fallback message without making a microphone request. Its shipped-audio playback and saved-text behavior were separately observed.
+
+The five British Council cards remain functional comparisons, not human recordings of this site's original scripts. The `listen-06` sarcasm warning remains. No synthetic audio was replaced, no external recording was copied, and no learner audio is uploaded. Human listening review, physical microphone checks and physical Safari/iOS recording remain outstanding.

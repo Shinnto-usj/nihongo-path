@@ -458,7 +458,7 @@ const humanPractice = [
     ],
     "scenarioIds": [
       "hotel",
-      "city"
+      "convenience"
     ],
     "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson02.html",
     "sourceTitle": "国际交流基金《いろどり》入门第2课 · 真人教材录音",
@@ -543,9 +543,7 @@ const humanPractice = [
     "lessonIds": [
       "n5-02"
     ],
-    "scenarioIds": [
-      "convenience"
-    ],
+    "scenarioIds": [],
     "url": "https://www.irodori.jpf.go.jp/en/starter/audio/lesson16.html",
     "sourceTitle": "国际交流基金《いろどり》入门第16课 · 真人教材录音",
     "locator": "16-12（X_[16-12]_kiku2.mp3）；课文 L16-19。后续可听16-13的询价后不买场景。",

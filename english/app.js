@@ -239,7 +239,7 @@ function updateRecorderUI(){
   start.textContent=recordingPending?'等待麦克风许可…':recording?'正在录音':recordingUrl?'重新录音':'开始录音';
   if(status)status.textContent=recording?'正在录音 · 切到后台将停止':recordingPending?'请在浏览器权限提示中选择':recordingUrl?'已停止，可以回听或下载':session?.finished?(mediaRecorder?'正在准备回听…':'本次没有可回听的录音'):'等待你主动开启';
   if(player){player.hidden=!recordingUrl;if(recordingUrl&&player.getAttribute('src')!==recordingUrl)player.src=recordingUrl;}
-  if(download){download.hidden=!recordingUrl;if(recordingUrl){download.href=recordingUrl;download.download=`english-practice-${dateNow()}.${recordingChunks[0]?.type?.includes('mp4')?'m4a':'webm'}`;}}
+  if(download){download.hidden=!recordingUrl;if(recordingUrl){const mime=recordingChunks[0]?.type?.toLowerCase()||'',extension=mime.includes('mp4')?'m4a':mime.includes('ogg')?'ogg':'webm';download.href=recordingUrl;download.download=`english-practice-${dateNow()}.${extension}`;}}
 }
 async function startRecording(){
   if(document.hidden||!session||session.finished||recordingPending||mediaRecorder?.state==='recording')return;

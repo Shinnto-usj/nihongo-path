@@ -88,7 +88,7 @@
 
 #### J3. 听不清时，接着把交流完成
 
-对应微课：`f06`；生活场景：`hotel / city`。
+对应微课：`f06`；生活场景：`hotel / convenience`。这两个场景均包含「もう一度お願いします」；市政场景只有慢说与书面说明请求，不挂接这张要求回听重复请求的卡片。
 
 [国际交流基金《いろどり》入门第2课](https://www.irodori.jpf.go.jp/en/starter/audio/lesson02.html) · [官方课文](https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L02.pdf)。**位置：**02-03：请求重复房号；02-02：请求放慢；课文 L2-11。模仿练习另见02-05／02-06、L2-3。
 
@@ -152,7 +152,7 @@
 
 #### J7. 询价后听清价格，再决定买不买
 
-对应微课：`n5-02`；生活场景：`convenience`。
+对应微课：`n5-02`；生活场景：在微课练习。便利店结账场景不含询价句，因此不挂接这张卡片；`n5-02` 提供「いくらですか」示范，可完成下述回听步骤。
 
 [国际交流基金《いろどり》入门第16课](https://www.irodori.jpf.go.jp/en/starter/audio/lesson16.html) · [官方课文](https://www.irodori.jpf.go.jp/assets/data/starter/pdf/X_L16.pdf)。**位置：**16-12（X_[16-12]_kiku2.mp3）；课文 L16-19。后续可听16-13的询价后不买场景。
 
@@ -306,7 +306,9 @@
 | interaction-03-c1 Can I pick up on ...? | Kokoro神经合成 | `english/assets/audio/kokoro-da1d1fd6864c4807892a139e.mp3` |
 | story-04-c2 I had already ... by the time ... | Kokoro神经合成 | `english/assets/audio/kokoro-c8db8c440fed0bc5109f1ba7.mp3` |
 
-## 7. 验证记录与限制
+## 7. 初始候选的验证记录与限制
+
+以下记录对应初始候选 `fce1f4469cbeec28f6e74d5a3b9c7546195d032b`。后续独立验收、修复及发布结果见 [最新验证记录](verification.md#independent-acceptance-of-pr-1--2026-11-01)。初始候选未完成浏览器验收的描述保留为历史事实，不代表后继版本的状态。
 
 - 144项现有与必要新增检查全部通过（12个测试文件）；新增2项日语录音生命周期回归与1项英语听力录音回归。
 - 内容校验通过；两套静态应用构建成功；两套单文件版构建成功。发布检查包含既有音频文件、公开文件边界和单文件内容安全策略校验。
