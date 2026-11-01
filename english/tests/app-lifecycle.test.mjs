@@ -378,6 +378,74 @@ test('finishing while recording preserves the completed audio for playback and d
   assert(app.calls.revoked.includes(url));
 });
 
+test('Firefox default Ogg chunks receive an ogg download name when the recorder MIME is empty', async () => {
+  const app = harness(); app.startSession('speak', speaking[0].id);
+  const pending = app.startRecording(), stream = app.stream(); app.calls.requests[0].resolve(stream); await pending;
+  const recorder = app.recorder();
+  recorder.mimeType = ''; // Firefox 142 exposes the format on the data Blob instead.
+  recorder.stop = function () {
+    this.state = 'inactive';
+    app.calls.stops.push(() => {
+      this.ondataavailable({ data: new Blob(['local Ogg recording'], { type: 'audio/ogg; codecs=opus' }) });
+      this.onstop();
+    });
+  };
+  app.finishSession(); app.flushStops();
+  const download = app.elements.get('#recording-download');
+  assert.equal(app.calls.blobs.at(-1).type, 'audio/ogg; codecs=opus');
+  assert.equal(download.hidden, false);
+  assert.equal(download.href, app.recordingUrl());
+  assert.match(download.download, /^english-practice-.*\.ogg$/u);
+  assert.equal(stream.track.stopped, true);
+  app.closeSession();
+});
+
+test('listening output keeps its asynchronous recording download after saving and clears it on close', async () => {
+  const app = harness(), item = listening[0];
+  app.startSession('listen', item.id);
+  assert.equal(app.elements.has('#record-start'), false, 'the listening intro has no recording controls');
+  await app.click('quiz-start');
+  for (const question of item.questions) {
+    await app.click('answer', question.answer);
+    await app.click('quiz-next');
+  }
+  assert.equal(app.session().stage, 'output');
+  assert.equal(app.elements.get('#record-start').disabled, false);
+  assert.equal(app.elements.get('#record-stop').disabled, true);
+  const outputPlayer = app.elements.get('#recording-player');
+  const pending = app.click('record-start'), stream = app.stream();
+  assert.equal(app.elements.get('#record-start').disabled, true, 'permission requests cannot be duplicated');
+  app.calls.requests[0].resolve(stream); await pending;
+  assert.equal(app.recorder().state, 'recording');
+  assert.equal(app.elements.get('#record-stop').disabled, false);
+  app.advance(30_000); await app.type('The speaker gives a limited commitment and explains what remains uncertain.');
+  await app.click('finish');
+  assert.equal(stream.track.stopped, true);
+  assert.equal(app.session().stage, 'summary');
+  assert.notEqual(app.elements.get('#recording-player'), outputPlayer, 'saving rebuilds the audio controls');
+  assert.equal(app.elements.get('#record-start').disabled, true);
+  assert.equal(app.recordingUrl(), '', 'the final recorder event has not arrived yet');
+  app.flushStops();
+  const url = app.recordingUrl(), download = app.elements.get('#recording-download');
+  assert(url);
+  assert.equal(app.elements.get('#recording-player').src, url);
+  assert.equal(app.elements.get('#recording-player').hidden, false);
+  assert.equal(download.hidden, false);
+  assert.equal(download.href, url);
+  assert.match(download.download, /^english-practice-.*\.webm$/u);
+  assert.equal(app.state().practice.length, 1);
+  assert.equal(app.state().practice[0].type, 'listening');
+  assert.equal(app.state().practice[0].score, item.questions.length);
+  assert.equal(app.state().practice[0].assisted, false);
+
+  await app.click('close');
+  assert.equal(app.recordingUrl(), '');
+  assert(app.calls.revoked.includes(url));
+  app.startSession('listen', item.id);
+  assert.equal(app.elements.has('#recording-player'), false, 'restarting cannot expose the previous sample');
+  app.closeSession();
+});
+
 test('background time is excluded, the speaking timer pauses, and a summary cannot add another practice', async () => {
   const app = harness(); app.startSession('speak', speaking[0].id); app.toggleTimer();
   app.advance(20_000); await app.setHidden(true);

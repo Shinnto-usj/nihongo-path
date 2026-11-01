@@ -2,7 +2,7 @@ import { course } from './content/course.js';
 import { pronunciation } from './content/pronunciation.js';
 import { kana } from './lib/kana.js';
 import { normalizePronunciationText, createPronunciationPlayer } from './lib/pronunciation.js';
-import { STORAGE_KEY, defaultState, loadState, saveState, localDate, daysUntil, getStreak, dueCards, reviewCard, recordLesson, recordActivity, recordAssessment, getDailyPlan, getMilestoneDate, importState, exportState, checkAnswer, normalizeAnswer } from './lib/engine.js';
+import { STORAGE_KEY, defaultState, saveState, localDate, daysUntil, getStreak, dueCards, reviewCard, recordLesson, recordActivity, recordAssessment, getDailyPlan, getMilestoneDate, importState, exportState, checkAnswer, normalizeAnswer } from './lib/engine.js';
 
 const $ = (selector, scope = document) => scope.querySelector(selector);
 const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
@@ -22,7 +22,9 @@ const todayKey = () => localDate(new Date(), state.profile.timeZone);
 const vocabCatalog = [...new Map(course.lessons.flatMap(l => l.vocab.map(v => [v.id, {...v,kind:'vocab',lessonId:l.id,level:l.level}]))).values()];
 const kanaCatalog = kana.flatMap(k => [{id:`kana-h-${k.id}`,jp:k.hiragana,kana:k.hiragana,romaji:k.romaji,zh:`平假名 · ${k.romaji}`,kind:'kana',sourceId:k.id}, {id:`kana-k-${k.id}`,jp:k.katakana,kana:k.katakana,romaji:k.romaji,zh:`片假名 · ${k.romaji}`,kind:'kana',sourceId:k.id}]);
 const cardCatalog = [...vocabCatalog, ...kanaCatalog];
-let state = loadState();
+let originalStoredProgress = null;
+let storageWriteBlocked = false;
+let state = loadProgress();
 let route = location.hash.slice(1).split('?')[0] || 'today';
 if (!routeTitles[route]) route = 'today';
 let lessonFilter = 'all';
@@ -47,11 +49,31 @@ const sessionKey = 'nihongo-path:active-session:v1';
 let suspended = null;
 try {const candidate=JSON.parse(localStorage.getItem(sessionKey)||'null'); if(candidate?.type === 'lesson' && course.lessons.some(l=>l.id===candidate.lessonId) && Number.isFinite(candidate.seconds) && candidate.seconds>=0 && Array.isArray(candidate.results) && candidate.results.length<100) suspended=candidate;} catch {}
 
-function persist() {
+function loadProgress() {
+  try {
+    originalStoredProgress=localStorage.getItem(STORAGE_KEY);
+    return originalStoredProgress===null?defaultState():importState(originalStoredProgress);
+  } catch {
+    storageWriteBlocked=true;
+    return defaultState();
+  }
+}
+function storageWarning() {
+  if(!storageWriteBlocked)return '';
+  return `<section class="note note-warning" role="status"><strong>现有学习记录未能读取，已暂停保存。</strong><p>原始记录不会被本页练习覆盖。请先导出备份，再到学习设置导入有效记录并确认替换；当前练习可另行导出保留。</p><div class="form-actions">${originalStoredProgress!==null?button('导出原始记录','export-original','secondary small'):''}${button('导出当前练习','export','secondary small')}${button('打开备份设置','settings','ghost small')}</div></section>`;
+}
+function persist({replace=false}={}) {
+  if(storageWriteBlocked&&!replace){
+    const status=$('#save-status');if(status)status.textContent='原始记录受保护 · 本页练习尚未保存';
+    toast('已暂停保存，避免覆盖原始记录。请先在学习设置导出备份，再确认导入有效记录。');
+    return false;
+  }
   const ok = saveState(state);
+  if(ok&&replace){storageWriteBlocked=false;originalStoredProgress=null;}
   const status = $('#save-status');
   if (status) status.textContent = ok ? '进度已保存在此浏览器' : '暂时无法保存 · 请导出备份';
   if (!ok) toast('浏览器存储不可用，请在设置中导出进度，避免丢失。');
+  return ok;
 }
 function toast(message) {
   const el=$('#toast'); el.textContent=message; el.classList.add('visible');
@@ -59,12 +81,13 @@ function toast(message) {
   clearTimeout(toastTimeout); toastTimeout=setTimeout(()=>{el.classList.remove('visible');el.textContent='';},6000);
 }
 function suspendSession() {
+  if(storageWriteBlocked)return;
   if (session?.type==='lesson' && session.stage!=='summary') {
     suspended=structuredClone(session);
     try {localStorage.setItem(sessionKey,JSON.stringify(suspended));} catch {}
   }
 }
-function clearSuspended() {suspended=null; try{localStorage.removeItem(sessionKey);}catch{}}
+function clearSuspended() {suspended=null;if(storageWriteBlocked)return;try{localStorage.removeItem(sessionKey);}catch{}}
 function activateCards(cards) {
   const now=new Date().toISOString();
   for (const card of cards) if (!state.cards[card.id]) state.cards[card.id]={due:now,intervalDays:0,reps:0,lapses:0,lastReviewed:now};
@@ -83,7 +106,8 @@ function render() {
   });
   const crumb=$('.breadcrumb'); if(crumb) crumb.innerHTML=`我的学习空间 <span> / ${routeTitles[route]}</span>`;
   const views={today:todayView,course:courseView,kana:kanaView,scenarios:scenariosView,review:reviewView,progress:progressView,settings:settingsView};
-  $('#app').innerHTML=views[route]();
+  $('#app').innerHTML=storageWarning()+views[route]();
+  if(storageWriteBlocked){const status=$('#save-status');if(status)status.textContent='原始记录受保护 · 本页练习尚未保存';}
   document.title=`${routeTitles[route]} · 日々 日本語`;
   $('#app').removeAttribute('aria-busy');
   const target=$('#sidebar-target-date'); if(target)target.textContent=state.profile.targetDate?state.profile.targetDate.replaceAll('-','.'):'设置目标日期';
@@ -207,9 +231,15 @@ function resumeLesson() {
   setSession({...old,questions,seconds:Math.min(old.seconds,86400),correct:old.results.filter(r=>r.correct).length});
   if(session.stage==='intro')showLessonIntro();else renderQuestion();
 }
+function humanPracticeCards(kind,id) {
+  const key=kind==='lesson'?'lessonIds':'scenarioIds';
+  const cards=(course.humanPractice||[]).filter(card=>card[key]?.includes(id));
+  if(!cards.length)return '';
+  return `<section class="human-practice" aria-label="真人语音对照练习"><h3 class="section-title">听真人，把这一句用起来</h3><p class="text-small text-muted">每次选一项，约 5 分钟。先听完整原速，再模仿一句，最后换一个信息自己说。</p>${cards.map(card=>`<details><summary>${esc(card.title)}</summary><p><a href="${safeUrl(card.url)}" target="_blank" rel="noopener noreferrer" data-action="stop-speech">${esc(card.sourceTitle)} ↗</a></p><p class="text-small"><strong>听哪里：</strong>${esc(card.locator)} <a href="${safeUrl(card.transcriptUrl)}" target="_blank" rel="noopener noreferrer" data-action="stop-speech">查看官方课文 ↗</a></p><p class="text-small text-muted">${esc(card.match)}</p><p><strong>留意：</strong>${esc(card.focus)}</p><ol>${card.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol><p class="text-small"><strong>自查：</strong>${esc(card.success)}</p></details>`).join('')}<p class="text-small text-muted">在原站听示范，回这里自己说。旅居会话页可录音回听；每次只比较一个细节。</p></section>`;
+}
 function showLessonIntro() {
   const lesson=course.lessons.find(l=>l.id===session.lessonId);
-  const body=`<div class="chip-row"><span class="badge green">${levelLabel(lesson.level)}</span><span class="text-small text-muted">${lesson.minutes} 分钟 · ${lesson.questions.length} 道练习</span></div><h3 class="section-title">这一课，你将能……</h3><p>${esc(lesson.canDo)}</p><div class="reading-block">${lesson.explanation.map(p=>`<p>${nl(p)}</p>`).join('')}</div><h3 class="section-title">先听，再跟着说</h3>${lesson.examples.map(ex=>`<div class="example-card"><p class="japanese" lang="ja">${nl(ex.jp)}</p>${ex.kana&&ex.kana!==ex.jp?`<p class="text-small" lang="ja">${esc(ex.kana)}</p>`:''}${state.profile.showRomaji&&ex.romaji?`<p class="romaji">${esc(ex.romaji)}</p>`:''}<p class="translation">${esc(ex.zh)}</p>${ex.note?`<p class="text-small text-muted">${esc(ex.note)}</p>`:''}${speechButtons(ex.jp)}</div>`).join('')}<div class="note"><strong>听完后，把目光移开，试着再说一遍。</strong><p>下一步会做 ${lesson.questions.length} 道题。听力题先播放声音；看过原文后作答，会记录为辅助练习。</p></div>`;
+  const body=`<div class="chip-row"><span class="badge green">${levelLabel(lesson.level)}</span><span class="text-small text-muted">${lesson.minutes} 分钟 · ${lesson.questions.length} 道练习</span></div><h3 class="section-title">这一课，你将能……</h3><p>${esc(lesson.canDo)}</p><div class="reading-block">${lesson.explanation.map(p=>`<p>${nl(p)}</p>`).join('')}</div><h3 class="section-title">先听，再跟着说</h3>${lesson.examples.map(ex=>`<div class="example-card"><p class="japanese" lang="ja">${nl(ex.jp)}</p>${ex.kana&&ex.kana!==ex.jp?`<p class="text-small" lang="ja">${esc(ex.kana)}</p>`:''}${state.profile.showRomaji&&ex.romaji?`<p class="romaji">${esc(ex.romaji)}</p>`:''}<p class="translation">${esc(ex.zh)}</p>${ex.note?`<p class="text-small text-muted">${esc(ex.note)}</p>`:''}${speechButtons(ex.jp)}</div>`).join('')}${humanPracticeCards('lesson',lesson.id)}<div class="note"><strong>听完后，把目光移开，试着再说一遍。</strong><p>下一步会做 ${lesson.questions.length} 道题。听力题先播放声音；看过原文后作答，会记录为辅助练习。</p></div>`;
   openModal(lesson.title,body,button('开始练习 '+icon('arrow'),'begin-questions'));
 }
 function renderQuestion() {
@@ -323,6 +353,11 @@ function startScenario(id){
   setSession({type:'scenario',scenarioId:id,nodeId:'start',history:[],feedback:null,showTranslation:true,choices:0,retries:0});renderScenario();
 }
 function recordingControls(){return `<div class="recording-box"><div class="example-actions">${button(icon('mic',17)+' 开始录音','record','secondary small')}${button('停止录音','stop-record','ghost small','disabled')}<span id="recording-status" class="text-small text-muted">录下自己，听听与示范的区别。</span></div><audio id="mic-playback" controls hidden></audio><p class="text-small text-muted">仅在本页回听，不上传，不自动评分；关闭练习后清除。</p></div>`;}
+function restoreRecordingPlayback(){
+  if(!recordingUrl)return;
+  const player=$('#mic-playback');if(player){player.src=recordingUrl;player.hidden=false;}
+  const label=$('#recording-status');if(label)label.textContent='录音已就绪，点播放回听。';
+}
 function renderScenario(){
   const s=course.scenarios.find(x=>x.id===session.scenarioId); const node=s.nodes.find(n=>n.id===session.nodeId);
   if(!node){toast('这个对话节点暂时不可用。');closeModal();return;}
@@ -331,8 +366,11 @@ function renderScenario(){
   const current=`<div class="chat-row"><span class="chat-speaker">${esc(node.speaker)}</span><div class="speech-bubble"><p lang="ja" class="japanese">${nl(node.jp)}</p>${node.kana?`<p lang="ja" class="text-small">${esc(node.kana)}</p>`:''}${state.profile.showRomaji&&node.romaji?`<p class="romaji">${esc(node.romaji)}</p>`:''}${session.showTranslation?`<p class="translation">${esc(node.zh)}</p>`:''}${speechButtons(node.jp)}</div></div>`;
   const options=node.end?`<div class="note note-success"><strong>这个场景，你已经练完了。</strong><p>${esc(s.goal)} · 本轮 ${session.choices} 次选择，${session.retries} 次提示。再读一遍自己的回应，然后试着录音复述。</p></div>`:session.feedback?`<div class="feedback ${session.feedback.quality==='good'?'correct':'incorrect'}" role="status"><strong>${session.feedback.quality==='good'?'这句很合适。':'换一种说法试试。'}</strong><p>${esc(session.feedback.text)}</p></div>`:`<h3 class="section-title">轮到你回应</h3><div class="question-options">${node.options.map(o=>`<button class="answer-option" data-action="scenario-answer" data-id="${esc(o.id)}"><span><span lang="ja" class="japanese">${esc(o.jp)}</span>${o.kana?`<small lang="ja">${esc(o.kana)}</small>`:''}${state.profile.showRomaji&&o.romaji?`<small class="romaji">${esc(o.romaji)}</small>`:''}${session.showTranslation?`<small>${esc(o.zh)}</small>`:''}</span></button>`).join('')}</div>`;
   const footer=node.end?`${button('再练一次','start-scenario','secondary',`data-id="${esc(s.id)}"`)}${button('完成','close-modal')}`:session.feedback?button('继续对话 '+icon('arrow'),'scenario-next'):button(session.showTranslation?'隐藏中文，试着理解':'显示中文提示','toggle-translation','ghost');
-  stopRecording(true);
-  openModal(s.title,`<div class="chip-row"><span class="badge green">${esc(s.place)}</span><span class="text-small text-muted">${esc(levelName(s.level))}</span></div><p class="section-subtitle">${esc(s.intro)}</p><div class="chat-history">${history}${current}</div>${options}${recordingControls()}`,footer);
+  // A display or dialogue refresh stays in this session. Stop capture, but keep
+  // its sample; the guarded onstop callback can attach it after this rerender.
+  stopRecording(false);
+  openModal(s.title,`<div class="chip-row"><span class="badge green">${esc(s.place)}</span><span class="text-small text-muted">${esc(levelName(s.level))}</span></div><p class="section-subtitle">${esc(s.intro)}</p><div class="chat-history">${history}${current}</div>${options}${humanPracticeCards('scenario',s.id)}${recordingControls()}`,footer);
+  restoreRecordingPlayback();
 }
 function scenarioAnswer(id){
   if(session?.type!=='scenario'||session.feedback)return;
@@ -427,9 +465,14 @@ async function startRecording(){
       if(audioStream===ownedStream)audioStream=null;
       if(recorder===activeRecorder)recorder=null;
       if(!activeRecorder.discard&&generation===recordingGeneration&&$('#modal').open&&session?.nonce===nonce){
-        recordingUrl=URL.createObjectURL(new Blob(chunks,{type:activeRecorder.mimeType||'audio/webm'}));
-        const player=$('#mic-playback');if(player){player.src=recordingUrl;player.hidden=false;}
-        const label=$('#recording-status');if(label)label.textContent='录音已就绪，点播放回听。';
+        const start=$('[data-action="record"]'),stop=$('[data-action="stop-record"]');if(start)start.disabled=false;if(stop)stop.disabled=true;
+        if(chunks.length){
+          recordingUrl=URL.createObjectURL(new Blob(chunks,{type:activeRecorder.mimeType||chunks[0].type||'audio/webm'}));
+          restoreRecordingPlayback();
+        }else{
+          const player=$('#mic-playback');if(player)player.hidden=true;
+          const label=$('#recording-status');if(label)label.textContent='没有获得可回听的录音，请重新开始。';
+        }
       }
       chunks.length=0;
     };
@@ -455,13 +498,25 @@ function stopRecording(discard=false){
 function exportProgress(){
   const blob=new Blob([exportState(state)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nihongo-progress-${todayKey()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('学习进度已导出。请保留这份 JSON 备份。');
 }
+function exportOriginalProgress(){
+  if(originalStoredProgress===null)return;
+  const blob=new Blob([originalStoredProgress],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`nihongo-original-${todayKey()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('原始记录已原样导出，请保留这份文件。');
+}
+function applyImport(){
+  if(!pendingImport)return;
+  state=pendingImport;
+  const saved=persist({replace:true});
+  if(saved)clearSuspended();
+  closeModal();render();
+  toast(saved?'学习进度已导入。':'记录仅载入本页，尚未保存；请保留原始记录和导入文件。');
+}
 async function previewImport(file){
   if(!file)return;
   try{
     if(file.size>5*1024*1024)throw new Error('备份文件过大，请选择本应用导出的 JSON 文件。');
     const candidate=importState(await file.text());
     setSession({type:'import'});pendingImport=candidate;
-    openModal('确认导入学习进度',`<div class="note note-warning"><strong>这会替换当前浏览器里的学习记录。</strong><p>建议先导出当前记录作备份。导入文件的内容已通过格式检查。</p></div><div class="stat-list"><p>复习卡片：${Object.keys(candidate.cards).length} 张</p><p>课程记录：${Object.keys(candidate.lessons).length} 项</p><p>学习日记录：${Object.keys(candidate.daily).length} 天</p><p>目标日期：${esc(candidate.profile.targetDate)}</p></div>`,`${button('先导出当前记录','export','secondary')}${button('确认替换并导入','apply-import')}`);
+    openModal('确认导入学习进度',`<div class="note note-warning"><strong>这会替换当前浏览器里的学习记录。</strong><p>建议先导出当前记录作备份。导入文件的内容已通过格式检查。</p></div><div class="stat-list"><p>复习卡片：${Object.keys(candidate.cards).length} 张</p><p>课程记录：${Object.keys(candidate.lessons).length} 项</p><p>学习日记录：${Object.keys(candidate.daily).length} 天</p><p>目标日期：${esc(candidate.profile.targetDate)}</p></div>`,`${storageWriteBlocked&&originalStoredProgress!==null?button('先导出原始记录','export-original','secondary'):''}${button('先导出当前记录','export','secondary')}${button('确认替换并导入','apply-import')}`);
   }catch(error){toast(`未导入：${error.message}`);}
 }
 
@@ -482,8 +537,8 @@ const actions={
   'focus':el=>startFocus(el?.dataset?.kind||'course'),
   'toggle-focus':()=>{session.running=!session.running;lastTick=performance.now();const el=$('[data-action="toggle-focus"]');el.textContent=session.running?'暂停计时':'开始 / 继续';$('#timer-status').textContent=session.running?'计时中 · 离开学习时请暂停':'已暂停，准备好后继续。';},
   'finish-focus':()=>{saveFocus();closeModal();},'add-assessment':assessmentForm,'sample-assessment':el=>startSample(el.dataset.level),
-  'record':startRecording,'stop-record':()=>stopRecording(false),'export':exportProgress,
-  'apply-import':()=>{if(!pendingImport)return;const candidate=pendingImport;state=candidate;clearSuspended();persist();closeModal();render();toast('学习进度已导入。');}
+  'record':startRecording,'stop-record':()=>stopRecording(false),'export':exportProgress,'export-original':exportOriginalProgress,
+  'apply-import':applyImport
 };
 document.addEventListener('click',event=>{
   lastInteraction=Date.now();
@@ -501,7 +556,7 @@ document.addEventListener('submit',event=>{
   if(event.target.id==='settings-form'){
     event.preventDefault();const data=new FormData(event.target);
     const profile={...state.profile,targetDate:data.get('targetDate'),dailyMinutes:Number(data.get('dailyMinutes')),city:String(data.get('city')).trim(),departureDate:String(data.get('departureDate')),timeZone:data.get('timeZone'),speechRate:Number(data.get('speechRate')),showRomaji:data.has('showRomaji')};
-    try{state=importState(JSON.stringify({...state,profile}));persist();render();toast('设置已保存。下一轮学习会使用新的节奏。');}catch(error){toast(`未保存：${error.message}`);}
+    try{state=importState(JSON.stringify({...state,profile}));const saved=persist();render();toast(saved?'设置已保存。下一轮学习会使用新的节奏。':'设置暂存本页，请导出当前练习；原始记录保持原样。');}catch(error){toast(`未保存：${error.message}`);}
   }
   if(event.target.id==='assessment-form'){
     event.preventDefault();const data=new FormData(event.target);const source=String(data.get('source')).trim();
@@ -547,4 +602,4 @@ setInterval(()=>{
 },1000);
 render();
 $('#app').removeAttribute('aria-busy');
-if(loadState.lastError)toast(loadState.lastError+' 原始记录尚未覆盖，请先检查备份。');
+if(storageWriteBlocked)toast('现有学习记录未能读取，已暂停保存。请先导出原始记录，再确认导入有效备份。');

@@ -1,6 +1,6 @@
 # Verification record
 
-This record distinguishes automated checks, earlier browser observations, and checks still required for the public release. It is not a certification of language proficiency or evidence that publication has completed.
+This record distinguishes automated checks, browser observations, and explicit publication results. Only the dated publication sections assert that a particular build was deployed; none of these checks certify language proficiency or subjective pronunciation quality.
 
 ## Current automated checks
 
@@ -10,13 +10,13 @@ The current automated test results are:
 | --- | ---: | --- |
 | Learning engine | 28 | Timezones and date boundaries; streaks; due-card filtering; lapse and reentry schedules; failed and repeated lessons; the completion boundary; actual elapsed time and counts; import/export validation; unsafe input rejection; optional personal target dates and relative checkpoints |
 | Content | 11 | Answer validity; unique IDs; listening transcript separation; standalone question context; scenario reachability and successful paths; official HTTPS resource mappings; vocabulary consistency; checkpoint references |
-| Application lifecycle | 21 | Duplicate and late microphone requests; recorder cleanup; overlapping speech initialization; exactly-once persistence; result timing; cross-tab refresh; failed reattempt wording; wrong-question backup and resolution; focus restoration |
+| Application lifecycle | 29 | Duplicate and late microphone requests; recorder cleanup; overlapping speech initialization; exactly-once persistence; result timing; cross-tab refresh; failed reattempt wording; wrong-question backup and resolution; focus restoration |
 | Public release | 6 | Build whitelist and private canaries; exact standalone CSP hashes; preceding hosted CSP; restricted network and script execution; generic initial state |
 | Audio playback | 11 | Same-origin and embedded audio, local fallback, stale callbacks, interruption, rate bounds |
 | Audio content | 4 | All 493 Japanese text keys, native priority, 389 real MP3 assets, bounded paths and frame validation |
-| **Japanese total** | **81** | Tests run with the built-in Node.js test runner |
-| **English companion** | **60** | See [English verification](../english/docs/verification.md) |
-| **Combined total** | **141** | 12 test files; all pass |
+| **Japanese total** | **89** | Tests run with the built-in Node.js test runner |
+| **English companion** | **62** | See [English verification](../english/docs/verification.md) |
+| **Combined total** | **151** | 12 test files; all pass |
 
 Static build and JavaScript syntax checks have also passed. These checks do not require external services, credentials, model calls, or real microphone access.
 
@@ -105,3 +105,41 @@ Updated standalone builds embed their course MP3s and use final script/style CSP
 - Portable HTML copies with embedded audio were saved successfully. File and website progress are separate browser contexts; explicit export/import transfers records between them.
 
 Documentation-only updates after the application commit do not change this Pages release.
+
+## Independent acceptance of PR 1 — 2026-11-01
+
+The review started from PR #1 at `fce1f4469cbeec28f6e74d5a3b9c7546195d032b`, against `main` at `ef4797d8a37c1a74acb6fdfc7d9141dc87a725d8`. Independent reviews covered material matching, recording ownership and lifecycle, learning records, and release boundaries. Existing source research and the 144-case candidate evidence were reused; the browser checks below fill the missing acceptance work.
+
+### Findings corrected before release
+
+- The price comparison remains in `n5-02`, which contains the actual price question. It was removed from the convenience-store scene, which does not contain that question. The repetition card moved from the city-office scene to the convenience-store scene, where its requested phrase is available. All eight Japanese cards and five English cards remain.
+- A Japanese recorder stopped by the browser now restores its start/stop buttons only for the current recording and session. Empty recording data no longer produces a false ready-to-play sample. Old callbacks still cannot change a newer recording.
+- Firefox 142 was observed to produce Ogg/Opus data while exposing an empty recorder MIME string. English recording downloads now use `.ogg` for the actual Ogg chunk type; MP4 and WebM behavior is retained.
+- An existing Japanese recovery gap was repaired: unreadable progress previously fell back to an empty in-memory state that could later overwrite the saved original. The app now pauses ordinary writes, preserves both the original progress and suspended-lesson storage, offers a verbatim original download, and resumes saving only after a valid backup is explicitly confirmed and successfully written. Valid v1 records are not migrated or rewritten on load. A second independent review checked this repair.
+- The source whitelist now explicitly includes the original human-speech review document. The static publishing whitelist is unchanged.
+
+### Automated evidence
+
+`npm run check` and `npm test` passed on the final application changes. The 12 existing test files now define **151 cases: 89 Japanese and 62 English**. The seven additional regressions beyond the initial candidate cover automatic/empty recording completion, protected original records and confirmed recovery, and Firefox Ogg naming. The release suites also execute both static and portable builders in disposable checkouts and check exact CSP hashes, audio identity, and exclusion of private canaries. The combined production builder was run separately, and runtime source/build bytes were compared before publication.
+
+### Actual browser evidence
+
+All browser records and downloaded samples in this review were isolated QA data. No existing learner profile, personal microphone, or personal recording was accessed.
+
+| Environment | Observed scope | Limit |
+| --- | --- | --- |
+| Chromium 141.0.7390.37, Linux | 14 acceptance groups passed: eight Japanese cards and official links; both shipped-audio players; real MediaRecorder capture with a browser test device; Japanese rerender/next-turn retention, automatic stop and cleanup; English listening completion, replay and download; old v1 records, literal HTML-like text and JSON backup safety; rejected/cancelled import; protected original export and confirmed recovery; desktop and 390px phone-width UI; no page exceptions or outgoing application requests | The audio source was a test device. This does not validate a physical microphone or human pronunciation. |
+| Firefox 142.0.1, Linux | The final build produced an Ogg/Opus recording, stopped all tracks, replayed the sample to completion and downloaded a real `.ogg` file with the `OggS` header. Old and new written samples survived refresh. A missing Linux audio-output sink was isolated from the application and resolved for the test with a null output containing no hardware input; shipped MP3 playback then also succeeded. | This tests the Firefox engine and generated test audio, not a user's audio hardware. |
+| WebKit 26.0, Linux | Both application views, shipped MP3 playback, saved listening text, refresh retention and the unsupported-recording message were checked without page exceptions. This build does not expose MediaRecorder; the app made no microphone request and did not invent a recording. | Linux Playwright WebKit is not a physical Safari/macOS/iOS test. Native Safari microphone and MP4 recording remain unverified. |
+
+The Chromium recording tests used actual browser MediaRecorder events and playable Blob data, in addition to the existing controlled race tests. Japanese samples survived translation changes, answer feedback, and continued dialogue; closing the exercise revoked the sample, and a new exercise did not reuse it. English listening saved exactly one practice record and retained the audio on its result page for explicit download.
+
+Previously saved settings, an older speech rate, achievements, review cards, drafts and written samples were retained. English output containing literal HTML markup rendered as text. Exported learning JSON contained the written records and no recording Blob or audio URL; Japanese and English storage keys did not overwrite one another. A damaged Japanese original survived a settings save, downloaded byte-for-byte, survived cancelled import, and was replaced only through the explicit valid-import confirmation.
+
+The new practice panels were visually inspected at phone width, including their expanded instructions and official-source links. This is responsive-browser evidence, not physical mobile-device certification.
+
+### Boundaries retained
+
+The fixed audio catalog and its source labels are unchanged. Third-party audio stays on the publishers' sites; new practice cards are links and original exercise instructions. Both hosted CSPs still prohibit application connections and frames and allow media only from the application origin and temporary recording Blobs. No audio, screenshots, test logs, personal progress, or browser profiles are added to the public release beyond the existing fixed course MP3 catalog.
+
+**Human pronunciation listening review and real-microphone checks remain incomplete.** Successful decoding, recording, playback and task completion do not establish improved learner pronunciation, native-like prosody, or language proficiency. The warning about unreviewed synthetic sarcasm intonation in English `listen-06` remains visible.
