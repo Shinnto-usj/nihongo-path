@@ -27,6 +27,22 @@ Manager: Understood. I'll tell the group we're discussing the direction tomorrow
   },
   {
     id: 'listen-02', title: 'The opening behind the small talk', scene: '两位同事在活动结束后闲聊。',
+    humanPractice: {
+      "id": "human-en-listen-02",
+      "sceneId": "listen-02",
+      "title": "接住话题，再自然追问",
+      "url": "https://learnenglish.britishcouncil.org/free-resources/learning-hub/discussions/2-being-good-listener",
+      "sourceTitle": "British Council · Being a good listener · 真人交流示范",
+      "locator": "从开场询问周末活动开始，听 Jo 讲骑车赶在暴雨前返回的经历；再听末段 Jonathan 概括、Jo 确认理解。可在逐字稿查找 What did you get up to?。",
+      "match": "功能对照：观察回应、追问与确认理解；不是本站原句的真人录音，也不作为单一口音标准。",
+      "focus": "短回应出现的位置、接话前的停顿，以及追问是否接住对方刚给出的细节。",
+      "steps": [
+        "在原站关文本听一个完整问答段，记下一个可以继续追问的细节。",
+        "开逐字稿，再听听者如何表示在听、怎样把话交回对方；只选一处跟读。",
+        "回到本站本地录音面板，针对陶艺课场景说一个短回应和一个追问，再换成自己的周末经历。无需使用原站的录音上传功能。"
+      ],
+      "success": "两次回应都接住上一个话轮的信息；能指出自己留给对方接话的位置。不把完成练习视为自然度评分。"
+    },
     focus: '接住对方提供的话题线索，不把闲聊变成问卷', minutes: 9,
     script: `Colleague A: Did you get up to anything over the weekend?
 Colleague B: Nothing particularly impressive. I tried a pottery class and produced something that's technically a bowl.
@@ -45,6 +61,22 @@ Colleague B: Will do. Have you tried anything like that before?`,
   },
   {
     id: 'listen-03', title: 'A promising result, a smaller claim', scene: '研究讨论中的因果推断。',
+    humanPractice: {
+      "id": "human-en-listen-03",
+      "sceneId": "listen-03",
+      "title": "让步之后，把异议说清楚",
+      "url": "https://learnenglish.britishcouncil.org/free-resources/speaking/b2/challenging-someones-ideas",
+      "sourceTitle": "British Council · Challenging someone's ideas · B2 真人教学情景",
+      "locator": "听正式情景中 Paul 质疑猫视频是否适合品牌公司的部分，直到 Emir 建议先试两周。可用 I take your point 定位；先听情景，再听主持人的示范。",
+      "match": "功能对照：有保留的赞同和建设性质疑；不是研究场景原文的真人版。",
+      "focus": "让步与异议之间的意群、转折处的停顿和信息重音。请依据实际听到的声音观察，不预设固定语调。",
+      "steps": [
+        "不看文本听完讨论，用自己的话说出每个人同意什么、反对什么。",
+        "选择一个真人话轮，听三遍，只模仿其意群和表达保留意见的方式。",
+        "回本站录制对原研究场景的回应：保留结果有价值这一点，指出自选样本问题，再提出一个可执行的下一步。"
+      ],
+      "success": "听者能够分清你接受的观察和仍有保留的结论；没有把温和语气变成含糊立场。"
+    },
     focus: '区分观察、解释和建议；听懂有建设性的质疑', minutes: 11,
     script: `Presenter: People who used the new booking form submitted their requests faster, so the form clearly saves time.
 Reviewer: It may well do. I'm not sure the comparison gets us all the way there, though. Didn't people choose which form to use?
@@ -62,6 +94,22 @@ Presenter: Right. We can recommend the next test without pretending the first on
   },
   {
     id: 'listen-04', title: 'Repairing the message', scene: '两人发现对“接手一份文件”的理解不同。',
+    humanPractice: {
+      "id": "human-en-listen-04",
+      "sceneId": "listen-04",
+      "title": "承担澄清责任，修复误解",
+      "url": "https://learnenglish.britishcouncil.org/free-resources/listening/b2/office-party-planning",
+      "sourceTitle": "British Council · Office party planning · B2 真人教学录音",
+      "locator": "从 Ayako 说预算最多增加 10% 开始，听 Sam 澄清实际约需增加 50%，再听双方寻找替代钢琴方案。可查找 Sorry if I wasn't being clear。",
+      "match": "功能对照：修复模糊说法造成的误解；预算讨论与本站任务归属讨论的内容不同。",
+      "focus": "承认歧义之后怎样停顿、怎样突出纠正的信息，以及怎样继续合作。",
+      "steps": [
+        "先听目标片段，说清双方对预算增加幅度的理解有什么不同。",
+        "开文本，定位承认没说清、给出精确信息、继续找方案的三个步骤，再听一遍。",
+        "回本站录一段 20–30 秒的修复说明：解释只修订开头而非接管全文，并说清下一步；再换成初稿与终稿的误解重录一次。"
+      ],
+      "success": "录音能回答原本承诺什么、没有承诺什么、接下来谁做什么；修复时没有责怪听者。"
+    },
     focus: '修正措辞、确认共同理解与任务归属', minutes: 9,
     script: `Editor: I thought you were taking over the proposal this week, so I told the team to send their comments to you.
 Writer: Ah, I can see how that came across. When I said I'd pick it up, I meant I'd revise the opening section, not coordinate the whole document.
@@ -96,6 +144,7 @@ Friend A: No sofa duties. Just mugs, plates, and whatever mysterious things are 
   },
   {
     id: 'listen-06', title: 'A very quiet evening', scene: '朋友回顾一场有点失控的晚餐。',
+    prosodyNote: '这段用于结合上下文理解反话。合成音频的反话语调尚未经过真人审听，先不要把它当作跟读语调的标准。',
     focus: '依据上下文理解反话，避免只凭一个词猜语气', minutes: 10,
     script: `Friend A: So, how was your supposedly quiet dinner?
 Friend B: Oh, wonderfully peaceful. The smoke alarm went off halfway through, the cat stole a piece of fish, and we discovered we'd invited two people who had just had an argument.
@@ -175,6 +224,22 @@ Speaker: Start with one recurring meeting. Decide what a useful outcome looks li
   },
   {
     id: 'listen-11', title: 'The day that went off plan', scene: '朋友讲一次意外改变安排的小旅行。',
+    humanPractice: {
+      "id": "human-en-listen-11",
+      "sceneId": "listen-11",
+      "title": "从整齐脚本走向自然叙事",
+      "url": "https://learnenglish.britishcouncil.org/free-resources/general/audio-zone/special-restaurant",
+      "sourceTitle": "British Council · A special restaurant · Audio zone 真人访谈",
+      "locator": "选 Jo 讲提前一年订位、期待就餐的段落，到采访者追问最佳菜品之前结束。想练短问答时，可改选后面的甜点描述。",
+      "match": "功能对照：叙事转折、评价和临场组织表达；沿用本站已有资源，非旅行课文的同句录音。Audio zone 含多种口音。",
+      "focus": "意群、插入说明、说到一半调整表达后如何继续，以及听者的简短回应。",
+      "steps": [
+        "不看文本听一个完整叙事段，只记期待、实际经历、评价三个要点。",
+        "查逐字稿，找到一处重新组织句子的地方，再听讲者怎样接着说下去。",
+        "回本站用三点提示录 45 秒自己的小旅行经历，再压缩成 20 秒；不背原文，也不刻意复制每个填充词。"
+      ],
+      "success": "两个版本都保留事件、转折和评价；允许自然停顿或短暂修正，听者仍能跟上。"
+    },
     focus: '追踪叙事转折、时间关系和讲述者的评价', minutes: 10,
     script: `Speaker: We had this beautifully organised day planned: an early train, a walk by the river, then lunch at a place we'd booked weeks before. Naturally, we missed the train. By the time we reached the town, it was raining, and the restaurant had called to say there was a problem in the kitchen. At that point, I was ready to declare the whole thing a write-off. My friend suggested we duck into a bookshop until the rain eased. There was a reading happening upstairs, so we stayed for that, talked to a couple of people afterwards, and ended up at a tiny café they recommended. We didn't do a single thing on the original list. I'm not claiming every failed plan turns into an adventure, but that one improved once we stopped trying to rescue it.`,
     questions: [
@@ -186,6 +251,22 @@ Speaker: Start with one recurring meeting. Decide what a useful outcome looks li
   },
   {
     id: 'listen-12', title: 'An agreement with conditions', scene: '活动团队决定是否试行一种新安排。',
+    humanPractice: {
+      "id": "human-en-listen-12",
+      "sceneId": "listen-12",
+      "title": "把有条件的同意收束成明确安排",
+      "url": "https://learnenglish.britishcouncil.org/free-resources/listening/c1/project-management-meeting",
+      "sourceTitle": "British Council · A project management meeting · C1 真人教学录音",
+      "locator": "从 Matteo 说明自己任务过多的部分开始，听 Barbara 提出暂时协助，直到最后确认月末交付。重点听安排如何从保留意见变为可接受的承诺。",
+      "match": "功能对照：协商条件和确认承诺；是教学会议录音，不是本站活动试行场景的真人版。",
+      "focus": "愿意、可能做到与已经承诺的区别；限制条件的位置、信息重音和话轮衔接。",
+      "steps": [
+        "先不看文本，记下最初的障碍、后来提出的帮助和最终安排。",
+        "查逐字稿，区分保留意见、支持意愿和交付承诺，再听条件怎样与同意连在一起。",
+        "回本站以原活动主持人的身份录 20 秒会议收尾，保留试行性质和取消条件；再换一个自己熟悉的任务练一次。"
+      ],
+      "success": "收尾中有下一步、负责人和条件；没有把带条件的同意改说成全面承诺。"
+    },
     focus: '辨别有条件支持、默认方案与取消条件', minutes: 11,
     script: `Organiser: I'd like to try an open discussion instead of three short presentations next month.
 Facilitator: I'm open to it. My only hesitation is that the quieter people might get even less space if we just let the conversation run.

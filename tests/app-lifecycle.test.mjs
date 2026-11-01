@@ -36,9 +36,11 @@ function namedFunction(name, nextName) {
 }
 
 const HANDLERS = [
-  namedFunction('openModal', 'setSession'),
+  namedFunction('openModal', 'speechButtons'),
   namedFunction('speechButtons', 'startLesson'),
   namedFunction('renderReview', 'rateCard'),
+  namedFunction('humanPracticeCards', 'showLessonIntro'),
+  namedFunction('startScenario', 'startFocus'),
   namedFunction('saveFocus', 'assessmentForm'),
   namedFunction('pronunciationLabel', 'startRecording'),
   namedFunction('startRecording', 'stopRecording'),
@@ -59,10 +61,19 @@ const CLOCK = APP.slice(timerStart, timerEnd + '},1000);'.length);
 
 function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds: 0 }, initialState = defaultState(NOW),
   pronunciation = { schemaVersion: 1, label: '预生成神经合成语音', entries: {} } } = {}) {
-  const calls = { requests: [], recorders: [], stops: [], persisted: [], messages: [], renders: 0, spoken: [], spokenVoices: [], spokenRates: [], audio: [], blobs: [], events: new Map(), documentEvents: new Map(), intervals: [], timeouts: [] };
+  const calls = { requests: [], recorders: [], stops: [], persisted: [], messages: [], renders: 0, spoken: [], spokenVoices: [], spokenRates: [], audio: [], blobs: [], revoked: [], events: new Map(), documentEvents: new Map(), intervals: [], timeouts: [] };
   const elements = new Map([
     ['#modal', { open: true, close() { this.open = false; }, showModal() { this.open = true; }, setAttribute() {} }],
-    ['#modal-content', { set innerHTML(body) { calls.lastModal = { body }; } }],
+    ['#modal-content', { set innerHTML(body) {
+      calls.lastModal = { body };
+      // Replacing modal markup creates a new, initially empty recording player.
+      if(body.includes('id="mic-playback"')){
+        elements.set('#mic-playback', { hidden: true, src: '' });
+        elements.set('#recording-status', { textContent: '' });
+        elements.set('[data-action="record"]', { disabled: false });
+        elements.set('[data-action="stop-record"]', { disabled: true });
+      }
+    } }],
     ['#modal-title', { focus() {} }],
     ['#recording-status', { textContent: '' }],
     ['[data-action="record"]', { disabled: false }],
@@ -107,7 +118,7 @@ function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds:
     SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
     URL: {
       createObjectURL(blob) { calls.blobs.push(blob); return `blob:mock-${calls.blobs.length}`; },
-      revokeObjectURL() {},
+      revokeObjectURL(url) { calls.revoked.push(url); },
     },
     setTimeout: fn => { calls.timeouts.push(fn); return calls.timeouts.length; },
     clearTimeout() {},
@@ -120,7 +131,7 @@ function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds:
     toast: message => calls.messages.push(message),
     render: () => { calls.renders += 1; },
     suspendSession() {}, clearSuspended() {}, activateCards() {},
-    esc: value => String(value ?? ''), icon: () => '', button: text => text,
+    esc: value => String(value ?? ''), nl: value => String(value ?? ''), safeUrl: String, levelName: String, icon: () => '', button: text => text,
     percent: (a, b) => b ? Math.round(a / b * 100) : 0,
     formatTime: seconds => String(Math.floor(seconds)),
   };
@@ -137,7 +148,7 @@ function harness({ initialSession = { type: 'info', nonce: 'session-a', seconds:
     ${VISIBILITY_EVENTS}
     ${CLOCK}
     globalThis.subject={startRecording,stopRecording,openModal,closeModal,speak,stopSpeech,saveFocus,pronunciationLabel,speechButtons,
-      prepareToLeave,renderReview,finishQuestions,getMistakes,
+      prepareToLeave,renderReview,finishQuestions,getMistakes,startScenario,renderScenario,scenarioAnswer,
       state:()=>state,session:()=>session,recorder:()=>recorder};
   `, context);
   return {
@@ -200,6 +211,64 @@ test('an old recording stop callback cannot stop or replace the next recording',
   assert.equal(app.calls.blobs.length, 0, 'stale recording must not replace the new playback');
   app.stopRecording(true); app.flushStops();
   assert.equal(newStream.track.stopped, true);
+});
+
+test('a completed scenario recording survives translation, answer and dialogue refreshes', async () => {
+  const app = harness();
+  app.startScenario('cafe');
+  const stream = app.stream('scenario-sample');
+  const pending = app.startRecording(); app.calls.requests[0](stream); await pending;
+  app.recorder().ondataavailable({ data: new Blob(['learner sample']) });
+  app.stopRecording(false); app.flushStops();
+  const firstPlayer = app.elements.get('#mic-playback'), url = firstPlayer.src;
+  assert(url, 'a stopped sample must be available before the display changes');
+
+  app.session().showTranslation = !app.session().showTranslation;
+  app.renderScenario();
+  assert.notEqual(app.elements.get('#mic-playback'), firstPlayer, 'the modal must replace the old audio element');
+  assert.equal(app.elements.get('#mic-playback').src, url);
+  assert.equal(app.elements.get('#mic-playback').hidden, false);
+
+  const option = course.scenarios.find(s => s.id === 'cafe').nodes.find(n => n.id === 'start').options.find(o => o.quality === 'good');
+  app.scenarioAnswer(option.id);
+  assert.equal(app.elements.get('#mic-playback').src, url, 'answer feedback must retain the sample');
+  app.session().nodeId = app.session().feedback.next; app.session().feedback = null;
+  app.renderScenario();
+  assert.equal(app.elements.get('#mic-playback').src, url, 'the next dialogue turn stays in the same session');
+  assert.equal(app.calls.revoked.includes(url), false);
+
+  app.closeModal();
+  assert.equal(app.calls.revoked.includes(url), true, 'leaving the exercise still discards its sample');
+});
+
+test('a scenario refresh stops capture and attaches its asynchronous sample only to the same session', async () => {
+  const app = harness();
+  app.startScenario('cafe');
+  const stream = app.stream('refresh-during-capture');
+  const pending = app.startRecording(); app.calls.requests[0](stream); await pending;
+  app.recorder().ondataavailable({ data: new Blob(['unfinished learner sample']) });
+  const oldPlayer = app.elements.get('#mic-playback');
+  app.renderScenario();
+  assert.equal(stream.track.stopped, true, 'a UI refresh must not leave capture running');
+  assert.equal(app.recorder(), null);
+  app.renderScenario(); // A second refresh can happen before the browser's onstop event.
+  const currentPlayer = app.elements.get('#mic-playback');
+  assert.notEqual(currentPlayer, oldPlayer);
+  assert.equal(app.calls.blobs.length, 0);
+  app.flushStops();
+  assert.equal(currentPlayer.hidden, false);
+  assert.equal(currentPlayer.src, 'blob:mock-1');
+  assert.equal(oldPlayer.src, '', 'the callback must bind the newly rendered player');
+
+  const nextStream = app.stream('old-session-capture');
+  const next = app.startRecording(); app.calls.requests[1](nextStream); await next;
+  assert.equal(app.calls.revoked.includes('blob:mock-1'), true, 'a new recording replaces the previous sample');
+  app.renderScenario(); // Queues a second asynchronous sample.
+  app.startScenario('cafe'); // Restarting even the same scenario creates a new session.
+  app.flushStops();
+  assert.equal(app.calls.blobs.length, 1, 'an old session must not publish its late sample');
+  assert.equal(app.elements.get('#mic-playback').hidden, true);
+  assert.equal(app.elements.get('#mic-playback').src, '');
 });
 
 test('hiding the page immediately stops microphone capture and returning does not restart it', async () => {

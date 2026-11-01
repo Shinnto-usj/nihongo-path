@@ -553,3 +553,13 @@ details > .btn { margin-top: 12px; }
   body { background: white; }
   .card, .lesson-card, .scenario-card, .stat-card { break-inside: avoid; box-shadow: none; }
 }
+
+/* Contextual human examples use publisher links and existing local practice. */
+.human-practice { margin: 24px 0; padding: 18px; border: 1px solid var(--line, #dcded5); border-radius: 12px; }
+.human-practice details { padding: 12px 0; }
+.human-practice details + details { border-top: 1px solid var(--line, #dcded5); }
+.human-practice summary { cursor: pointer; font-weight: 600; line-height: 1.6; }
+.human-practice p, .human-practice li { line-height: 1.75; }
+.human-practice ol { padding-left: 1.5em; }
+.human-practice li + li { margin-top: 8px; }
+.human-practice a { overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }

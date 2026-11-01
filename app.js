@@ -207,9 +207,15 @@ function resumeLesson() {
   setSession({...old,questions,seconds:Math.min(old.seconds,86400),correct:old.results.filter(r=>r.correct).length});
   if(session.stage==='intro')showLessonIntro();else renderQuestion();
 }
+function humanPracticeCards(kind,id) {
+  const key=kind==='lesson'?'lessonIds':'scenarioIds';
+  const cards=(course.humanPractice||[]).filter(card=>card[key]?.includes(id));
+  if(!cards.length)return '';
+  return `<section class="human-practice" aria-label="真人语音对照练习"><h3 class="section-title">听真人，把这一句用起来</h3><p class="text-small text-muted">每次选一项，约 5 分钟。先听完整原速，再模仿一句，最后换一个信息自己说。</p>${cards.map(card=>`<details><summary>${esc(card.title)}</summary><p><a href="${safeUrl(card.url)}" target="_blank" rel="noopener noreferrer" data-action="stop-speech">${esc(card.sourceTitle)} ↗</a></p><p class="text-small"><strong>听哪里：</strong>${esc(card.locator)} <a href="${safeUrl(card.transcriptUrl)}" target="_blank" rel="noopener noreferrer" data-action="stop-speech">查看官方课文 ↗</a></p><p class="text-small text-muted">${esc(card.match)}</p><p><strong>留意：</strong>${esc(card.focus)}</p><ol>${card.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol><p class="text-small"><strong>自查：</strong>${esc(card.success)}</p></details>`).join('')}<p class="text-small text-muted">在原站听示范，回这里自己说。旅居会话页可录音回听；每次只比较一个细节。</p></section>`;
+}
 function showLessonIntro() {
   const lesson=course.lessons.find(l=>l.id===session.lessonId);
-  const body=`<div class="chip-row"><span class="badge green">${levelLabel(lesson.level)}</span><span class="text-small text-muted">${lesson.minutes} 分钟 · ${lesson.questions.length} 道练习</span></div><h3 class="section-title">这一课，你将能……</h3><p>${esc(lesson.canDo)}</p><div class="reading-block">${lesson.explanation.map(p=>`<p>${nl(p)}</p>`).join('')}</div><h3 class="section-title">先听，再跟着说</h3>${lesson.examples.map(ex=>`<div class="example-card"><p class="japanese" lang="ja">${nl(ex.jp)}</p>${ex.kana&&ex.kana!==ex.jp?`<p class="text-small" lang="ja">${esc(ex.kana)}</p>`:''}${state.profile.showRomaji&&ex.romaji?`<p class="romaji">${esc(ex.romaji)}</p>`:''}<p class="translation">${esc(ex.zh)}</p>${ex.note?`<p class="text-small text-muted">${esc(ex.note)}</p>`:''}${speechButtons(ex.jp)}</div>`).join('')}<div class="note"><strong>听完后，把目光移开，试着再说一遍。</strong><p>下一步会做 ${lesson.questions.length} 道题。听力题先播放声音；看过原文后作答，会记录为辅助练习。</p></div>`;
+  const body=`<div class="chip-row"><span class="badge green">${levelLabel(lesson.level)}</span><span class="text-small text-muted">${lesson.minutes} 分钟 · ${lesson.questions.length} 道练习</span></div><h3 class="section-title">这一课，你将能……</h3><p>${esc(lesson.canDo)}</p><div class="reading-block">${lesson.explanation.map(p=>`<p>${nl(p)}</p>`).join('')}</div><h3 class="section-title">先听，再跟着说</h3>${lesson.examples.map(ex=>`<div class="example-card"><p class="japanese" lang="ja">${nl(ex.jp)}</p>${ex.kana&&ex.kana!==ex.jp?`<p class="text-small" lang="ja">${esc(ex.kana)}</p>`:''}${state.profile.showRomaji&&ex.romaji?`<p class="romaji">${esc(ex.romaji)}</p>`:''}<p class="translation">${esc(ex.zh)}</p>${ex.note?`<p class="text-small text-muted">${esc(ex.note)}</p>`:''}${speechButtons(ex.jp)}</div>`).join('')}${humanPracticeCards('lesson',lesson.id)}<div class="note"><strong>听完后，把目光移开，试着再说一遍。</strong><p>下一步会做 ${lesson.questions.length} 道题。听力题先播放声音；看过原文后作答，会记录为辅助练习。</p></div>`;
   openModal(lesson.title,body,button('开始练习 '+icon('arrow'),'begin-questions'));
 }
 function renderQuestion() {
@@ -323,6 +329,11 @@ function startScenario(id){
   setSession({type:'scenario',scenarioId:id,nodeId:'start',history:[],feedback:null,showTranslation:true,choices:0,retries:0});renderScenario();
 }
 function recordingControls(){return `<div class="recording-box"><div class="example-actions">${button(icon('mic',17)+' 开始录音','record','secondary small')}${button('停止录音','stop-record','ghost small','disabled')}<span id="recording-status" class="text-small text-muted">录下自己，听听与示范的区别。</span></div><audio id="mic-playback" controls hidden></audio><p class="text-small text-muted">仅在本页回听，不上传，不自动评分；关闭练习后清除。</p></div>`;}
+function restoreRecordingPlayback(){
+  if(!recordingUrl)return;
+  const player=$('#mic-playback');if(player){player.src=recordingUrl;player.hidden=false;}
+  const label=$('#recording-status');if(label)label.textContent='录音已就绪，点播放回听。';
+}
 function renderScenario(){
   const s=course.scenarios.find(x=>x.id===session.scenarioId); const node=s.nodes.find(n=>n.id===session.nodeId);
   if(!node){toast('这个对话节点暂时不可用。');closeModal();return;}
@@ -331,8 +342,11 @@ function renderScenario(){
   const current=`<div class="chat-row"><span class="chat-speaker">${esc(node.speaker)}</span><div class="speech-bubble"><p lang="ja" class="japanese">${nl(node.jp)}</p>${node.kana?`<p lang="ja" class="text-small">${esc(node.kana)}</p>`:''}${state.profile.showRomaji&&node.romaji?`<p class="romaji">${esc(node.romaji)}</p>`:''}${session.showTranslation?`<p class="translation">${esc(node.zh)}</p>`:''}${speechButtons(node.jp)}</div></div>`;
   const options=node.end?`<div class="note note-success"><strong>这个场景，你已经练完了。</strong><p>${esc(s.goal)} · 本轮 ${session.choices} 次选择，${session.retries} 次提示。再读一遍自己的回应，然后试着录音复述。</p></div>`:session.feedback?`<div class="feedback ${session.feedback.quality==='good'?'correct':'incorrect'}" role="status"><strong>${session.feedback.quality==='good'?'这句很合适。':'换一种说法试试。'}</strong><p>${esc(session.feedback.text)}</p></div>`:`<h3 class="section-title">轮到你回应</h3><div class="question-options">${node.options.map(o=>`<button class="answer-option" data-action="scenario-answer" data-id="${esc(o.id)}"><span><span lang="ja" class="japanese">${esc(o.jp)}</span>${o.kana?`<small lang="ja">${esc(o.kana)}</small>`:''}${state.profile.showRomaji&&o.romaji?`<small class="romaji">${esc(o.romaji)}</small>`:''}${session.showTranslation?`<small>${esc(o.zh)}</small>`:''}</span></button>`).join('')}</div>`;
   const footer=node.end?`${button('再练一次','start-scenario','secondary',`data-id="${esc(s.id)}"`)}${button('完成','close-modal')}`:session.feedback?button('继续对话 '+icon('arrow'),'scenario-next'):button(session.showTranslation?'隐藏中文，试着理解':'显示中文提示','toggle-translation','ghost');
-  stopRecording(true);
-  openModal(s.title,`<div class="chip-row"><span class="badge green">${esc(s.place)}</span><span class="text-small text-muted">${esc(levelName(s.level))}</span></div><p class="section-subtitle">${esc(s.intro)}</p><div class="chat-history">${history}${current}</div>${options}${recordingControls()}`,footer);
+  // A display or dialogue refresh stays in this session. Stop capture, but keep
+  // its sample; the guarded onstop callback can attach it after this rerender.
+  stopRecording(false);
+  openModal(s.title,`<div class="chip-row"><span class="badge green">${esc(s.place)}</span><span class="text-small text-muted">${esc(levelName(s.level))}</span></div><p class="section-subtitle">${esc(s.intro)}</p><div class="chat-history">${history}${current}</div>${options}${humanPracticeCards('scenario',s.id)}${recordingControls()}`,footer);
+  restoreRecordingPlayback();
 }
 function scenarioAnswer(id){
   if(session?.type!=='scenario'||session.feedback)return;
@@ -428,8 +442,7 @@ async function startRecording(){
       if(recorder===activeRecorder)recorder=null;
       if(!activeRecorder.discard&&generation===recordingGeneration&&$('#modal').open&&session?.nonce===nonce){
         recordingUrl=URL.createObjectURL(new Blob(chunks,{type:activeRecorder.mimeType||'audio/webm'}));
-        const player=$('#mic-playback');if(player){player.src=recordingUrl;player.hidden=false;}
-        const label=$('#recording-status');if(label)label.textContent='录音已就绪，点播放回听。';
+        restoreRecordingPlayback();
       }
       chunks.length=0;
     };
